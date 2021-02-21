@@ -10,6 +10,7 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 // if c++11
@@ -18,284 +19,364 @@
 #define JAHOUTF_GCC 1
 // ms
 
-#define CATCH(x) catch (const std::exception& e)\
+#define JAHOUTF_CATCH_EXCEPTION(x) catch (const std::exception& e)\
 {\
-    test_case_report_thrown(#x, e.what());\
+    jahoutf_current_test_->jahoutf_exception_thrown(#x, e.what());\
 }\
 catch (...)\
 {\
-    test_case_report_thrown(#x, "Unhandled exception!");\
+    jahoutf_current_test_->jahoutf_exception_thrown(#x, "Unhandled exception!");\
 }
 
 namespace jahoutf
 {
-    class test_interface;
+    class test;
+    class event_interface;
+    class report_interface;
     
     namespace _
     {
+        class test_result
+        {
+        public:
+            test_result(const std::string& g, const std::string& n) : group(g), name(n) {}
+            unsigned int total() const { return success.size() + failure.size(); }
+            std::string name, group, exception, exception_location;
+            std::list<std::string> success, failure;
+            unsigned int duration_ms;
+        };
+        
         class instance
         {
-            public:
+        public:
+            ~instance();
+
+            typedef std::map<std::string, std::list<test*>> test_list;
+            typedef std::list<test_result> result_list;
+
+            test_list tests_;
+            result_list results_;        
+            std::shared_ptr<event_interface> event_;
+            std::list<std::shared_ptr<report_interface>> reports_;
 
             bool shuffle_ = false;
-
-            // the tests to run...
-            typedef std::map<std::string,std::list<test_interface*>> test_list;
-            test_list tests_;        
-
-            // run tests
-            void run_tests();
-
-            class event_interface_base
-            {
-            public:
-                
-                virtual void case_start(const test_interface& test) {}
-                virtual void case_success(const test_interface& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
-                virtual void case_fail(const test_interface& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
-                virtual void case_exception(const test_interface& test, const std::string& exc) {}
-                virtual void case_end(const test_interface& test) {}
-                virtual void testsuite_start(const instance& session) {}
-                virtual void testsuite_end(const instance& session) {}
-                
-            };
-
-            std::unique_ptr<event_interface_base> event_;
-
-            class report_interface
-            {
-                public:
-                virtual void out(const instance& session) {}
-            };
-
-            std::list<std::unique_ptr<report_interface>> reports_;
-            
         };
     }
 
-    extern _::instance& session();
-    
-    class test_interface
+    class report_interface
     {
     public:
+        virtual void report(const _::instance& session) {}
+    };
 
-        // invoke test
-        test_interface(const std::string& group, const std::string& name )
-        :   name_(name), group_(group), duration_ms_(0)
+    class event_interface
+    {
+    public:
+        virtual void case_start(const test& test) {}
+        virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
+        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
+        virtual void case_exception(const test& test, const std::string& exc) {}
+        virtual void case_end(const test& test) {}
+        virtual void suite_start(const _::instance& session) {}
+        virtual void suite_end(const _::instance& session) {}
+    };
+
+    extern _::instance& session();
+
+    class test
+    {
+    public:
+        test(const std::string& group, const std::string& name)
         {
-            session().tests_[group_].push_back(this);
+            session().results_.push_back(_::test_result(group, name));
+            result_ = &session().results_.back();
         }
 
-        virtual ~test_interface() {}
-
-        virtual void invoke()
+        virtual void jahoutf_test_invoke()
         {
-            // start timer
+            jahoutf_current_test_ = this;
             session().event_->case_start(*this);
             std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-            
-            try { run(); }
-            CATCH(TestBody)
-
-            // stop timer...
+            try { jahoutf_test_body(); }
+            JAHOUTF_CATCH_EXCEPTION(TestBody)
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-            duration_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(begin - end);
+            result_->duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(begin - end).count();
             session().event_->case_end(*this);
         }
-        
-        virtual void run() = 0;
 
-        void test_case_report_success(const std::string& file, unsigned int lineNum, const std::string& msg = "")
-		{
-			successes_.push_back(msg);
-			session().event_->case_success(*this, file, lineNum, msg);
-		}
-
-        void test_case_report_fail(const std::string& file, unsigned int lineNum, const std::string& msg = "")
-		{
-			failures_.push_back(msg);
-            session().event_->case_fail(*this, file, lineNum, msg);
-		}
-
-        void test_case_report_thrown(const std::string& location, const std::string& e)
+        virtual void jahoutf_assert_pass(const std::string& file, unsigned int lineNum, const std::string& msg)
         {
-            exception_ = e;
-            exception_location_ = location;
+            result_->success.push_back(msg);
+            session().event_->case_success(*this, file, lineNum, msg);
+        }
+
+        virtual void jahoutf_assert_fail(const std::string& file, unsigned int lineNum, const std::string& msg)
+        {
+            result_->failure.push_back(msg);
+            session().event_->case_fail(*this, file, lineNum, msg);
+        }
+
+        virtual void jahoutf_exception_thrown(const std::string& location, const std::string& e)
+        {
+            result_->exception_location = location; result_->exception = e;
             session().event_->case_exception(*this, e);
         }
 
-        const std::list<std::string>& successes() const { return successes_; }
-        const std::list<std::string>& failures() const { return failures_; }
-        const std::string& exception() const { return exception_; }
-        const std::string& exception_location() const { return exception_location_; }
-        const std::string& group() const { return group_; }
-        const std::string& name() const { return name_; }
-        unsigned int duration_ms() const { return duration_ms_.count(); }
+        const std::string& jahoutf_test_group() const { return result_->group; }
+        const std::string& jahoutf_test_name() const { return result_->name; }
+        const _::test_result& jahoutf_test_result() const { return *result_; }
 
-private:
-        std::list<std::string> successes_, failures_;
-        std::string name_, group_, exception_, exception_location_;
-        std::chrono::milliseconds duration_ms_;
+        virtual void jahoutf_test_body() = 0;
+    protected:
+        test* jahoutf_current_test_;
+
+    private:
+        _::test_result* result_;
+
     };
 
-    class test_case : public test_interface
+}   // namespace jahoutf
+
+// A test case with just name...
+#define TESTCLASSNAME(x) x
+
+// Test case...
+#define TEST_CASE_DECLARE(testgroup, testname) namespace testgroup \
+{ \
+    class testname : public jahoutf::test \
+    {    \
+    public: \
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); } \
+        void jahoutf_test_body(); \
+    }; \
+    testname TESTCLASSNAME(testname); } \
+void testgroup::testname::jahoutf_test_body()
+
+
+namespace jahoutf
+{
+
+    class fixture
     {
-        public:
-        test_case(const std::string& group, const std::string& name)
-        :   test_interface(group, name)
-        {
-        }
-
-        void invoke()
-        {
-            test_interface::invoke();
-        }
-    };
-
-    class test_fixture
-    {
-        public:
-        test_interface* test_;
-
+    public:
+        test* jahoutf_current_test_;
         virtual void Setup() {}
         virtual void TearDown() {}
-        void test_case_report_success(const std::string& file, unsigned int lineNum, const std::string& msg = "") 
-        {
-            if (test_)
-                test_->test_case_report_success(file, lineNum, msg);
-        }
-        void test_case_report_fail(const std::string& file, unsigned int lineNum, const std::string& msg = "") 
-        {
-            if (test_)
-                test_->test_case_report_fail(file, lineNum, msg);
-        }
-        void test_case_report_thrown(const std::string& location, const std::string& e) 
-        {
-            if (test_)
-                test_->test_case_report_thrown(location, e);
-        }
     };
 
+}    // namespace jahoutf
+
+
+// Test fixture...
+#define TEST_FIXTURE_DECLARE(testfixture, testgroup, testname) namespace testgroup \
+{ \
+    class testname : public jahoutf::test \
+    { \
+    public:\
+        class wrapper : public testfixture\
+        {\
+        public:\
+            wrapper(jahoutf::test* t) { jahoutf_current_test_ = t; }\
+            void wrapper_test_body();\
+        };\
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
+        void jahoutf_test_invoke()\
+        {\
+            try\
+            { \
+                wrapper w(this); current_fixture_ = &w;\
+                try \
+                { \
+                    current_fixture_->Setup();\
+                    test::jahoutf_test_invoke(); \
+                    try { current_fixture_->TearDown(); } \
+                    JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
+            }\
+            JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
+        }\
+        void jahoutf_test_body() { current_fixture_->wrapper_test_body(); }\
+        wrapper* current_fixture_;\
+    };\
+    testname TESTCLASSNAME(testname); }\
+void testgroup::testname::wrapper::wrapper_test_body()
+
+
+namespace jahoutf
+{
     template <class T>
-    class test_param
+    class param : public fixture
     {
-
+    public:
+        param() {}
+        const T& GetParam();
+        T& param_;
+        unsigned int param_id_;
     };
-    
-    
-    class test_inline : public test_interface
-    {
-        // maybe inline test which isn't run by the session, but still output xUnit compatible if desired...
 
+    template<class T>
+    class values
+    {  
+        std::vector<T> values_;
+    public:
+        values(const std::vector<T>& v)
+        const std::vector<T>& get() const { return values_; }
+    };
+}
+
+
+
+
+namespace jahoutf
+{
+    class section : public test
+    {
+    public:
+        section(const std::string& group, const std::string& name)
+        :   test(group, name)
+        {
+            // test start
+            session().event_->case_start(*this);
+        }
+
+        ~section()
+        {
+            // handler for reporting exceptions...
+            session().event_->case_end(*this);
+        }
+        void jahoutf_test_body() {}
+    };
+}
+
+#define TEST_SECTION_DECLARE(testgroup, testname) if (std::unique_ptr<jahoutf::section> jahoutf_current_test_ = std::make_unique<jahoutf::section>(#testgroup, #testname))
+
+
+
+
+
+
+
+
+
+
+// default xUnit and Console output...
+namespace jahoutf
+{
+
+    
+    class console : public event_interface
+    {
+        public:
+        
+        std::string Black(const std::string& msg) { return std::string("\033[1;30m" + msg + "\033[0m"); }
+        std::string Red(const std::string& msg) { return std::string("\033[1;31m" + msg + "\033[0m"); }
+        std::string Green(const std::string& msg) { return std::string("\033[1;32m" + msg + "\033[0m"); }
+        std::string Yellow(const std::string& msg) { return std::string("\033[1;33m" + msg + "\033[0m"); }
+        std::string Blue(const std::string& msg) { return std::string("\033[1;34m" + msg + "\033[0m"); }
+        std::string Magenta(const std::string& msg) { return std::string("\033[1;35m" + msg + "\033[0m"); }
+        std::string Cyan(const std::string& msg) { return std::string("\033[1;36m" + msg + "\033[0m"); }
+        std::string White(const std::string& msg) { return std::string("\033[0;37m" + msg + "\033[0m"); }
+        std::string Inverse(const std::string& msg) { return std::string("\033[1;7m" + msg + "\033[0m"); }
+
+        std::string header(const test& test) { return std::string("\n" + test.jahoutf_test_group() + "." + test.jahoutf_test_name() + " "); }
+        std::string duration(unsigned int d) { return std::string("(" + std::to_string(d) + "ms)"); }
+        std::string results_bar(unsigned int successes, unsigned int failures)
+        {
+            unsigned int total = successes + failures, length = 20;
+            float percentage = static_cast<float>(failures) / static_cast<float>(total);
+            unsigned int f_bar = static_cast<int>(percentage * static_cast<float>(length));
+            if (!f_bar && failures) { f_bar = 1; }
+            unsigned int s_bar = length - f_bar;
+            std::ostringstream oss;
+            oss << "|" << Green(std::string(s_bar, '=')) << Red(std::string(f_bar, '=')) << "| ";
+            return oss.str();
+        }
+        virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) { if (!msg.empty()) { std::cout << header(test) << Cyan(filename + ":") << Yellow(std::to_string(lineNum)) << msg << "\n"; } }
+        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) { std::cout << header(test) << Red("fail ") << Cyan(filename + ":") << Yellow(std::to_string(lineNum)); if (!msg.empty()) { std::cout << msg << "\n"; } }
+        virtual void case_exception(const test& test, const std::string& exc)  { std::cout << header(test) << Magenta("EXCEPTION ") << "thrown in " << test.jahoutf_test_result().exception_location << "\n" << exc; }
+        virtual void case_end(const test& test) 
+        {
+            std::cout << header(test);
+            if (test.jahoutf_test_result().failure.empty())
+                std::cout << Green(" PASSED ") << std::to_string(test.jahoutf_test_result().success.size()) << "/" << std::to_string(test.jahoutf_test_result().total()) << " assertions succeeded. " << duration(test.jahoutf_test_result().duration_ms) << '\n';
+            else
+                std::cout << Red(" FAILED ") << std::to_string(test.jahoutf_test_result().failure.size()) << "/" << std::to_string(test.jahoutf_test_result().total()) << " assertions failed.\n";
+        }
+        virtual void suite_start(const _::instance& session) 
+        {
+            unsigned int test_count = 0, group_count = 0;
+            for (auto g = session.tests_.begin(); g != session.tests_.end(); ++g, ++group_count)
+                test_count += g->second.size();
+            if (session.shuffle_)
+                std::cout << Cyan("[SHUFFLE] ");
+            std::cout << Inverse("Running " + std::to_string(test_count) + " tests (" + std::to_string(group_count) + " groups)") << "\n";
+        }
+        virtual void suite_end(const _::instance& session) 
+        {
+            std::cout << "\n" << Inverse("Results");
+            struct group_result { unsigned int successful_assertions = 0, failed_assertions = 0, test_passes = 0, test_failures = 0, group_duration_ms = 0; };
+            std::map<std::string, group_result> group_results;
+            group_result total;
+            for (auto r = session.results_.begin(); r != session.results_.end(); ++r)
+            {
+                group_result& g = group_results[r->group];
+                g.group_duration_ms = r->duration_ms;
+                g.successful_assertions += r->success.size();
+                g.failed_assertions += r->failure.size();
+                if (r->failure.empty())
+                    ++g.test_passes;
+                else
+                    ++g.test_failures;
+                total.group_duration_ms += g.group_duration_ms;
+                total.successful_assertions += g.successful_assertions;
+                total.failed_assertions += g.failed_assertions;
+                total.test_passes += g.test_passes;
+                total.test_failures += g.test_failures;
+            }
+            for (auto g = group_results.begin(); g != group_results.end(); ++g)
+            {
+                std::cout << "\n" << results_bar(g->second.test_passes, g->second.test_failures) << " {" << Cyan(g->first) << "} ";
+                std::cout << std::to_string(g->second.test_passes) << "/" << std::to_string(g->second.test_passes + g->second.test_failures) << " tests passed ";
+                std::cout << "(" << std::to_string(g->second.successful_assertions) << "/" << std::to_string(g->second.successful_assertions + g->second.failed_assertions) << " assertions).";
+                std::cout << duration(g->second.group_duration_ms);
+            }
+            std::cout << "\n" << Inverse("Total");
+            std::cout << "\n" << results_bar(total.test_passes, total.test_failures);
+            std::cout << std::to_string(total.test_passes) << "/" << std::to_string(total.test_passes + total.test_failures) << " tests passed ";
+            std::cout << "(" << std::to_string(total.successful_assertions) << "/" << std::to_string(total.successful_assertions + total.failed_assertions) << " assertions).";
+            std::cout << duration(total.group_duration_ms) << "\n";
+        }
+    };
+
+    class xUnit : public jahoutf::report_interface
+    {
+    public:
+        std::string filepath_;
+        xUnit(const std::string& filename) : filepath_(filename) {}
+
+        void report(const _::instance& session)
+        {
+            std::ostringstream oss;
+            oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+            //oss << "<testsuite name=\"" << session EWDesignDay2020BehaviourTest" tests="2" failures="0" disabled="0" errors="0" time="0.004">"
+
+            // <testsuite name="EWDesignDay2020BehaviourTest" tests="2" failures="0" disabled="0" errors="0" time="0.004">
+            //   <testcase name="GetSizingPeriodOptions" status="run" time="0" classname="EWDesignDay2020BehaviourTest" />
+            //   <testcase name = "GetSummertimeTemperatureWithMechVentContinuousTreated19Degrees" status = "run" time = "0.001" classname = "CibseSimpleHeatGainBehaviour2015Test">
+            //	   <failure message = "c:\users\cordell\documents\soc2\soc\source\unittests\testenergymodel\heatgain.test.cpp:340&#x0A;The difference between TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) and 47.84 is 0.52000000000000313, which exceeds 0.1, where&#x0A;TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) evaluates to 47.32,&#x0A;47.84 evaluates to 47.840000000000003, and&#x0A;0.1 evaluates to 0.10000000000000001." type = ""><![CDATA[c:\users\cordell\documents\soc2\soc\source\unittests\testenergymodel\heatgain.test.cpp:340
+            //	The difference between TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) and 47.84 is 0.52000000000000313, which exceeds 0.1, where
+            //	TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) evaluates to 47.32,
+            //	47.84 evaluates to 47.840000000000003, and
+            //	0.1 evaluates to 0.10000000000000001.]]></failure>
+            //	</testcase>
+        }
     };
 
 
     // private stuff...
     namespace _
     {
-
-        class xUnit : public instance::report_interface
-        {
-            struct attr
-            {
-                attr(const std::string& name, const std::string& value)
-                :   name_(name), value_(value) {}
-                
-                std::string name_, value_;
-            };
-
-            struct element
-            {
-                element(const std::string& name, const std::list<attr>& attributes, const std::string& content)
-                :   name_(name), attributes_(attributes), content_(content) {}
-
-                std::list<element> elements_;
-                std::list<attr> attributes_;
-                std::string name_, content_;
-            };
-
-            void replace_chars(std::string& str, const std::string& what, const std::string& with)
-            {
-                std::size_t itr = str.find(what);
-                while (itr != std::string::npos)
-                {
-                    str.replace(itr, itr + what.size(), with.c_str());
-                    itr = str.find(what);
-                }
-            }
-
-            // escape
-            std::string escape(const std::string& syntax)
-            {
-                std::string result = syntax;
-                replace_chars(result, ">", "&gt;");
-                replace_chars(result, "<", "&lt;");
-                replace_chars(result, "&", "&amp;");
-                replace_chars(result, "'", "&apos;");
-                replace_chars(result, "\"", "&quot;");
-                return result;
-            }
-
-            // generate_syntax
-            std::string out_elements_and_attrs(const element& element, const std::string& indent)
-            {
-                std::string result = indent + "<" + element.name_ + " ";
-                for (auto itr = element.attributes_.begin(); itr != element.attributes_.end(); ++itr)
-                    result += itr->name_ + "=\"" + escape(itr->value_) + "\" ";
-                if (element.content_.empty() && element.elements_.empty())
-                    result += "/>\n";
-                else
-                {
-                    result += ">\n";
-                    if (!element.content_.empty())
-                        result += indent + escape(element.content_);
-                    for (auto itr = element.elements_.begin(); itr != element.elements_.end(); ++itr)
-                        result += out_elements_and_attrs(*itr, indent + "    ");
-                    result += indent + "</" + element.name_ + ">\n";
-                }
-                return result;
-            }
-
-            element generate_testsuite(const std::pair<std::string,std::list<test_interface*>>& test_group)
-            {
-                return element("", {}, {});
-            }
-
-            std::string generate_syntax(const element& root)
-            {
-                std::string result = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-                result += out_elements_and_attrs(root, "");
-			    return result;
-            }
-
-            std::string filepath_;
-
-            public:
-
-            xUnit(const std::string& filepath)
-            :   filepath_(filepath)
-            {
-            }
-
-            void out(const instance& session)
-            {
-                element root("testsuites",
-                {
-                    attr("tests", std::to_string(0)),
-                    attr("failures", std::to_string(0)),
-                    attr("disabled", std::to_string(0)),
-                    attr("errors", std::to_string(0)),
-                    attr("timestamp", std::to_string(0)),
-                    attr("time", std::to_string(0)),
-                    attr("now", std::to_string(0))
-                }, "");
-                for (auto groupItr = session.tests_.begin(); groupItr != session.tests_.end(); ++groupItr)
-                    root.elements_.push_back(generate_testsuite(*groupItr));
-
-                std::ofstream file(filepath_.c_str());
-                file << generate_syntax(root);
-            }
-        };
 
         static void shuffle(instance::test_list& tests)
         {
@@ -304,28 +385,16 @@ private:
 
         static void run_tests(instance::test_list& tests)
         {  
-            session().event_->testsuite_start(session());
+            session().event_->suite_start(session());
             if (session().shuffle_)
                 shuffle(tests);
 
-            unsigned int tests_count = 0;
-            unsigned int tests_passed = 0;
-            unsigned int tests_failed = 0;
-
+            unsigned int tests_count = 0, tests_passed = 0, tests_failed = 0;
             for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
-            {
                 for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
-                {
-                    (*testItr)->invoke();
-                    if ((*testItr)->failures().empty())
-                        ++tests_passed;
-                    else
-                        ++tests_failed;
-                }
-            }
-            session().event_->testsuite_end(session());
-            for (auto reportItr = session().reports_.begin(); reportItr != session().reports_.end(); ++reportItr)
-                (*reportItr)->out(session());
+                    (*testItr)->jahoutf_test_invoke();
+            
+            session().event_->suite_end(session());
         }
 
         static bool process_arguments(const std::string& arg)
@@ -335,11 +404,15 @@ private:
             {
                 std::string jahoutf_arg = arg.substr(itr+8);
                 if (jahoutf_arg == "silent") 
-                    jahoutf::session().event_.reset(new _::instance::event_interface_base());
+                    jahoutf::session().event_.reset(new event_interface());
                 else if (jahoutf_arg == "shuffle") 
                     jahoutf::session().shuffle_ = true;
                 else if (size_t filename = jahoutf_arg.find("xUnit=") != std::string::npos)
-                    jahoutf::session().reports_.push_back(std::make_unique<_::xUnit>(jahoutf_arg.substr(filename+4)));
+                    jahoutf::session().reports_.push_back(std::make_shared<jahoutf::xUnit>(jahoutf_arg.substr(filename+4)));
+                else if (jahoutf_arg == "run")
+                {
+                    // process the tests we have to only run them...
+                }
                 else 
                     std::cerr << "jahoutf argument invalid : " << jahoutf_arg << '\n';
                 return true;
@@ -348,157 +421,9 @@ private:
         }
     }
 
-
-    class event_interface : public _::instance::event_interface_base
-    {
-        public:
-        enum col { R, G, B, C, Y, M, K, W, I };
-        void output(const std::string& msg, const col& c = W) 
-        { 
-            #ifdef JAHOUTF_GCC
-                switch (c)
-                {
-                    case col::K: std::cout << "\033[1;30m" << msg << "\033[0m"; break;
-                    case col::R: std::cout << "\033[1;31m" << msg << "\033[0m"; break;
-                    case col::G: std::cout << "\033[1;32m" << msg << "\033[0m"; break;
-                    case col::Y: std::cout << "\033[1;33m" << msg << "\033[0m"; break;
-                    case col::B: std::cout << "\033[1;34m" << msg << "\033[0m"; break;
-                    case col::M: std::cout << "\033[1;35m" << msg << "\033[0m"; break;
-                    case col::C: std::cout << "\033[1;36m" << msg << "\033[0m"; break;
-                    case col::W: std::cout << "\033[0;37m" << msg << "\033[0m"; break;
-                    case col::I: std::cout << "\033[1;7m" << msg << "\033[0m"; break;
-                }
-    #endif
-        }
-
-        void progress_bar(unsigned int successes, unsigned int failures)
-        {
-            unsigned int total = successes + failures;
-            unsigned int length = 20;
-            float percentage = static_cast<float>(failures) / static_cast<float>(total);
-            unsigned int f_bar = static_cast<int>(percentage * static_cast<float>(length));
-            if (!f_bar && failures)
-                f_bar = 1;
-            unsigned int s_bar = length - f_bar;
-            output("|");
-            if (s_bar)
-                output(std::string(s_bar, '='), col::G);
-            if (f_bar)
-                output(std::string(f_bar, '='), col::R);
-            output("| ");
-        }
-
-        void header(const test_interface& test)
-        {
-            output("\n");
-            if (!test.group().empty())
-                output(test.group() + ".");
-            output(test.name() + " ");
-        }
-
-        void output_duration(unsigned int duration_ms)
-        {
-            output("(");
-            output(std::to_string(duration_ms));
-            output("ms)");
-        }
-
-        virtual void case_success(const test_interface& test, const std::string& filename, unsigned int lineNum, const std::string& msg) 
-        {
-            if (!msg.empty())
-            {
-                header(test);
-                output(filename + ":", col::C);
-                output(std::to_string(lineNum), col::Y);
-                output(msg + "\n");
-            }
-        }
-        virtual void case_fail(const test_interface& test, const std::string& filename, unsigned int lineNum, const std::string& msg) 
-        {
-            header(test);
-            output(" FAIL. ", col::R);
-            output(filename + ":", col::C);
-            output(std::to_string(lineNum), col::Y);
-            if (!msg.empty())
-                output(" " + msg + "\n");
-        }
-        virtual void case_exception(const test_interface& test, const std::string& exc) 
-        {
-            header(test);
-            output("EXCEPTION", col::M);
-            output(" thrown in " + test.exception_location() + "\n");
-            output(exc);
-        }
-        virtual void case_end(const test_interface& test) 
-        {
-            header(test);
-            if (test.exception().empty())
-            {
-                if (test.failures().empty())
-                {
-                    output(" PASSED. ", col::G);
-                    output(std::to_string(test.successes().size()) + "/" + std::to_string(test.successes().size() + test.failures().size()) + " assertions succeeded.");
-                    output_duration(test.duration_ms());
-                }
-                else
-                {
-                    output(" FAILED. ", col::R);
-                    output(std::to_string(test.failures().size()) + "/" + std::to_string(test.successes().size() + test.failures().size()) + " assertions failed.");
-                }
-            }
-        }
-        virtual void testsuite_start(const _::instance& session) 
-        {
-            unsigned int test_count = 0, group_count = 0;
-            for (auto g = session.tests_.begin(); g != session.tests_.end(); ++g, ++group_count)
-                test_count += g->second.size();
-            if (session.shuffle_)
-                output("[SHUFFLE] ", col::C);
-            output("Running " + std::to_string(test_count) + " tests (" + std::to_string(group_count) + " groups)\n", col::I);
-        }
-        virtual void testsuite_end(const _::instance& session) 
-        {
-            output("\nResults", col::I);
-            unsigned int total_successful_assertions = 0, total_failed_assertions = 0, total_test_passes = 0, total_test_failures = 0, total_test_duration_ms = 0;
-            for (auto g = session.tests_.begin(); g != session.tests_.end(); ++g)
-            {
-                unsigned int successful_assertions = 0, failed_assertions = 0, test_passes = 0, test_failures = 0, group_duration_ms = 0;
-                for (auto t = g->second.begin(); t != g->second.end(); ++t)
-                {
-                    successful_assertions += (*t)->successes().size();
-                    failed_assertions += (*t)->failures().size();
-                    if ((*t)->failures().empty())
-                        ++test_passes;
-                    else
-                        ++test_failures;
-                }
-                output("\n");
-                progress_bar(test_passes, test_failures);
-                output(" {" + g->first + "} ");
-                output(std::to_string(successful_assertions) + "/" + std::to_string(successful_assertions + failed_assertions) + " assertions passed. ");
-                output(std::to_string(test_passes) + "/" + std::to_string(test_passes + test_failures) + " tests passed.");
-                output_duration(group_duration_ms);
-                total_test_duration_ms += group_duration_ms;
-                total_failed_assertions += failed_assertions;
-                total_successful_assertions += successful_assertions;
-                total_test_passes += test_passes;
-                total_test_failures += test_failures;
-            }
-            output("\nTotal\n", col::I);
-            progress_bar(total_test_passes, total_test_failures);
-            output(std::to_string(total_successful_assertions) + "/" + std::to_string(total_successful_assertions + total_failed_assertions) + " assertions passed. ");
-            output(std::to_string(total_test_passes) + "/" + std::to_string(total_test_passes + total_test_failures) + " tests passed. ");
-            output_duration(total_test_duration_ms);
-            output("\n");
-        }
-    };
-
-    //class xUnit : public 
-
-    
     
 
-    
+
 
 }   // namespace jahoutf
 
@@ -509,14 +434,21 @@ private:
     namespace _ \
     { \
         static std::unique_ptr<instance> session_; \
-        void instance::run_tests() { _::run_tests(tests_); } \
+        instance::~instance()\
+        {\
+            for (auto reportItr = reports_.begin(); reportItr != reports_.end(); ++reportItr)\
+            {\
+                try { (*reportItr)->report(*this); }\
+                catch (...) {}\
+            }\
+        }\
     } \
     _::instance& session() \
     { \
         if (!_::session_) \
         { \
             _::session_.reset(new _::instance()); \
-            _::session_->event_.reset(new event_interface()); \
+            _::session_->event_.reset(new console()); \
         } \
         return *_::session_; \
     } \
@@ -529,7 +461,7 @@ void main_impl(const std::vector<std::string>& args); \
 int main(int argc, char** argv) \
 { \
     std::vector<std::string> args; \
-    for (unsigned int c = 1; c < argc; ++c) \
+    for (unsigned int c = 0; c < argc; ++c) \
     { \
         std::string arg(*(argv+c)); \
         if (!jahoutf::_::process_arguments(arg)) \
@@ -541,79 +473,39 @@ int main(int argc, char** argv) \
 void main_impl(const std::vector<std::string>& args)
 
 // Run all the tests.... used if user has global startup and teardown functionality in main....
-#define RUNALL jahoutf::session().run_tests();
-// Shuffle all the tests before invoking them...
-#define SHUFFLE jahoutf::session().randomize_ = true; RUNALL
-// Override the event observers...
-#define SILENT jahoutf::session().event_.reset(new _::instance::event_interface_base());
-#define EVENT_INTERFACE(x) jahoutf::session().event_.reset(new x());
+#define RUNALL jahoutf::_::run_tests(jahoutf::session().tests_);
+// Shuffle all the tests before running them (not applicable to section/inline tests)...
+#define SHUFFLE jahoutf::session().shuffle_ = true; RUNALL
+// Silence all the events
+#define SILENT jahoutf::session().event_.reset(new jahoutf::_::instance::event_interface());
+// Maybe post? Post current results to report...
 
 
-// A test case with just name...
-#define TESTCLASSNAME(x) x
-#define TEST_CASE_DECLARE(testgroup, testname) namespace testgroup \
-{ \
-    class testname : public jahoutf::test_case \
-    {    \
-        public: \
-        testname() : jahoutf::test_case(#testgroup, #testname) {} \
-        void run(); \
-    }; \
-    testname TESTCLASSNAME(testname); } \
-void testgroup::testname::run()
 
 #define TEST_CASE_1(testgroup, testname) TEST_CASE_DECLARE(testgroup, testname)
 #define TEST_CASE_2(testname) TEST_CASE_DECLARE(, testname)
-
 #define GET_TEST_CASE_MACRO(_1,_2,TCNAME,...) TCNAME
 #define TEST(...) GET_TEST_CASE_MACRO(__VA_ARGS__, TEST_CASE_1, TEST_CASE_2)(__VA_ARGS__)
 
-
-// Test fixture...
-#define TEST_FIXTURE_DECLARE(testfixture, testgroup, testname) namespace testgroup \
-{ \
-    class testname : public jahoutf::test_interface \
-    { \
-        public:\
-        class wrapper : public testfixture\
-        {\
-        public:\
-            wrapper(jahoutf::test_interface* test) { test_ = test; }\
-            void run();\
-        };\
-        testname() : jahoutf::test_interface(#testgroup, #testname) {}\
-        void invoke()\
-        {\
-            try { wrapper w(this); current_fixture_ = &w; }\
-            CATCH(fixture_construct)\
-            try { current_fixture_->Setup(); }\
-            CATCH(fixture_setup)\
-            test_interface::invoke();\
-            try { current_fixture_->TearDown(); }\
-            CATCH(fixture_teardown)\
-        }\
-        void run() { current_fixture_->run(); }\
-        wrapper* current_fixture_;\
-    };\
-    testname TESTCLASSNAME(testname); }\
-void testgroup::testname::wrapper::run()
+#define TEST_SECTION_1(testgroup, testname) TEST_SECTION_DECLARE(testgroup, testname)
+#define TEST_SECTION_2(testname) TEST_SECTION_DECLARE(, testname)
+#define GET_TEST_SECTION_MACRO(_1,_2,TSNAME,...) TSNAME
+#define TEST_SECTION(...) GET_TEST_SECTION_MACRO(__VA_ARGS__, TEST_SECTION_1, TEST_SECTION_2)(__VA_ARGS__)
 
 #define TEST_FIXTURE_1(testfixture, testgroup, testname) TEST_FIXTURE_DECLARE(testfixture, testgroup, testname)
 #define TEST_FIXTURE_2(testfixture, testname) TEST_FIXTURE_DECLARE(testfixture,, testname)
-
 #define GET_TEST_FIXTURE_MACRO(_1,_2,_3, TFNAME,...) TFNAME
 #define TEST_F(...) GET_TEST_FIXTURE_MACRO(__VA_ARGS__, TEST_FIXTURE_1, TEST_FIXTURE_2)(__VA_ARGS__)
-
 
 // Parameterised tests...
 
 
-// Inline tests...
+// (Section) Inline tests...
 
 
 // Assertions...
-#define SUCCESS test_case_report_success(__FILE__, __LINE__, "");
-#define FAIL test_case_report_fail(__FILE__, __LINE__, "");
+#define SUCCESS jahoutf_current_test_->jahoutf_assert_pass(__FILE__, __LINE__, "");
+#define FAIL jahoutf_current_test_->jahoutf_assert_fail(__FILE__, __LINE__, "");
 #define EXPECT_EQ(a, b) if (a == b) { SUCCESS } else { FAIL };
 #define EXPECT(a) EXPECT_EQ(a, true);
 #define EXPECT_NEAR(a, b, e) if (abs(b-a) <= e) { SUCCESS } else { FAIL };

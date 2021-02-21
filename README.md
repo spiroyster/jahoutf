@@ -2,22 +2,23 @@
 Just another header only unit testing framework. Similar to googletest syntax, supports fixtures, cases, inlined tests.
 Output in xUnit xml format..
 
+* Designed to be small
+* Single header only, standard c++
+* Support xUnit output
+* Tests cases, Test fixtures and paramterise these tests.
+* Googletest migration support would be nice
+
 # Usage
 
-# Quick Example...
+
+## Quick Example...
 
 #include "jahoutf.hpp"
 
-JAHOUTF_MAIN { RUNALL }
+JAHOUTF_MAIN { RUNALL }     // Declare a jshoutf test program...
 
-TEST(helloTestWorld, success)
-{
-    SUCCESS
-}
-TEST(helloTestWorld, fail)
-{
-    FAIL
-}
+TEST(helloTestWorld, success) { SUCCESS }   // A test that passes...
+TEST(helloTestWorld, fail) { FAIL }         // A test that fails...
 
 Compile it...
 
@@ -32,7 +33,11 @@ Output...
 
 
 
-# Test program
+
+# Creating Tests
+
+Tests can be created for either a test program (whose sole purpose is to perform tests), or tests can be inlined
+
 
 ## Test Case
 
@@ -95,7 +100,7 @@ class myFixture : public jahoutf::test_fixture
 
 
 
-## Command arguments
+# Running Tests
 
 Command arguments
 
@@ -109,14 +114,36 @@ Command arguments
 
 
 
-# Inline tests
+# Inline/Section Tests
+
+Alternatively, tests can be inlined into existing code
+
+int main(int argc, char** argv)
+{
+    int a = 2, b = 1;
+    int c = a + b;
+
+    TEST_SECTION(group, name)
+    {
+        EXPECT(c, 3)
+    }
+
+    return 0;
+}
+
+These will report events and also be recorded and reported hwne the instance closes. Reports can be generated prior by calling...
+
+JAHOUTF_REPORT
 
 
 
-# Report
+
+# Customising
 
 
-# Event
+## Event
+
+## Report
 
 
 
