@@ -40,6 +40,7 @@ namespace jahoutf
         {
         public:
             test_result(const std::string& g, const std::string& n) : group(g), name(n) {}
+            
             unsigned int total() const { return success.size() + failure.size(); }
             std::string name, group, exception, exception_location;
             std::list<std::string> success, failure;
@@ -206,12 +207,14 @@ void testgroup::testname::wrapper::wrapper_test_body()
 namespace jahoutf
 {
     template <class T>
-    class param : public fixture
+    class param
     {
     public:
         param() {}
-        const T& GetParam();
-        T& param_;
+        virtual void Setup() {}
+        virtual void TearDown() {}
+        const T& GetParam() const { return *param_; };
+        const T* param_;
         unsigned int param_id_;
     };
 
@@ -220,10 +223,67 @@ namespace jahoutf
     {  
         std::vector<T> values_;
     public:
-        values(const std::vector<T>& v)
+        values(const std::vector<T>& v) : values_(v) {}
         const std::vector<T>& get() const { return values_; }
     };
 }
+
+#define TEST_P(testfixture, testname) class testname : public testfixture, public jahoutf::test\
+{\
+public:\
+    testname(jahoutf::test* t, unsigned int n)\
+    :   jahoutf::test(t->jahoutf_test_group(), t->jahoutf_test_name() + "[" + std::to_string(n) + "]")\
+    {\
+        param_id_ = n;\
+    }\
+    void jahoutf_test_body();\
+};\
+void testname::jahoutf_test_body()
+
+#define INSTANTIATE_TEST_P(testgroup, testname, testfixture, testvalues) namespace testgroup \
+{\
+    class testname : public jahoutf::test\
+    {\
+    public:\
+        testname()\
+        : jahoutf::test(#testgroup, #testname)\
+        {\
+            jahoutf::session().tests_[#testgroup].push_back(this);\
+        }\
+        void jahoutf_test_invoke()\
+        {\
+            auto params_ = testvalues;\
+            for (unsigned int p = 0; p < params_.get().size(); ++p)\
+            {\
+                try\
+                {\
+                    testfixture w(this, p);\
+                    w.param_ = &params_.get()[p]; \
+                    current_fixture_ = &w;\
+                    try\
+                    { \
+                        current_fixture_->Setup();\
+                        current_fixture_->jahoutf_test_invoke();\
+                        try { current_fixture_->TearDown(); } \
+                        JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
+                    }\
+                    JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
+            }\
+        }\
+        void jahoutf_test_body() {}\
+        testfixture* current_fixture_;\
+    };\
+    testname TESTCLASSNAME(testname);\
+}
+
+
+
+
+
+
+
 
 
 

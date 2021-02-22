@@ -53,22 +53,12 @@ TEST_F(myFixture, fixture3)
     EXPECT_EQ(y_ - x_, -1);
 }
 
-// class myFixtureWithParams : public jahoutf::test_param<int>
-// {
 
-// };
-
-// TEST_P(myfixtureWithParams, theTestName)
-// {
-
-// }
-
-// INSTANTIATE_TEST_CASE_P(
-//         LeapYearTests,
-//         LeapYearParameterizedTestFixture,
-//         ::testing::Values(
-//                 1, 711, 1989, 2013
-//         ));
+// TEST_A(group, name, jahoutf::values<int>({ 1, 2, 3, 4, 5 }))
+// TEST_P(myFixtureWithParam, group, test, jahoutf::values<int>({ 1, 2, 3, 4, 5 }))
+//{
+//  SUCCESS
+//}
 
 
 // Fixture
@@ -82,67 +72,20 @@ class myFixtureWithParam : public jahoutf::param<int>
     }
 
     protected:
-        unsigned int x_, y_;
+        int x_, y_;
 };
 
-// TEST_P, testfixtureparam, testgroup, testname
-namespace testgroup
+TEST_P(myFixtureWithParam, passtest)
 {
-    class testname : public myFixtureWithParam
-    {
-    public:
-        testname(jahoutf::test* t, unsigned int n)
-        {
-            // setup param information...
-            jahoutf_current_test_ = t;
-            param_id_ = n;
-        }
-        void jahoutf_test_body();
-    };
-}
-void testgroup::testname::jahoutf_test_body()
-{
-    // test code...
+    SUCCESS
 }
 
-
-// INSTANTIATE_TEST_CASE_P(test_group, testname, TEST_P testname, jahoutf::values<int>({}))
-namespace testgroup
+TEST_P(myFixtureWithParam, failtest)
 {
-    class param_test : public jahoutf::test
-    {
-        std::vector<int> params_ = { 21, 22, 23, 24, 25 };
-    public:
-        param_test() 
-        : jahoutf::test("testgroup", "testname[]") 
-        { 
-            jahoutf::session().tests_["testgroup"].push_back(this); 
-        }
-        void jahoutf_test_invoke()
-        {
-            // for each param...
-            for (unsigned int p = 0; p < params_.size(); ++p)
-            {
-                // create the wrapper version, set the param...
-                try
-                {
-                    testname w(this, p);
-                    w.param_ = params_[p]; 
-                    current_fixture_ = &w;
-                    try
-                    { 
-                        current_fixture_->Setup();
-                        test::jahoutf_test_invoke(); 
-                        try { current_fixture_->TearDown(); } 
-                        JAHOUTF_CATCH_EXCEPTION(fixture_teardown)
-                    }
-                    JAHOUTF_CATCH_EXCEPTION(fixture_setup)
-                }
-                JAHOUTF_CATCH_EXCEPTION(fixture_construct)
-            }
-        }
-        void jahoutf_test_body() { current_fixture_->jahoutf_test_body(); }
-        testname* current_fixture_;
-    };
+    FAIL
 }
+
+INSTANTIATE_TEST_P(paramtests, test1, passtest, jahoutf::values<int>({ 21, 22, 23, 24 }))
+INSTANTIATE_TEST_P(paramtests, test2, failtest, jahoutf::values<int>({ 11, 12, 13, 14 }))
+INSTANTIATE_TEST_P(paramtests, test3, passtest, jahoutf::values<int>({ 11, 12, 13, 14 }))
 
