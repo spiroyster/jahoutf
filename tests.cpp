@@ -12,3 +12,10 @@ TEST(shouldfail, expect) { EXPECT(false) }
 TEST(shouldfail, expect_eq) { EXPECT_EQ(1,2) }
 
 TEST(exceptiontest, testcase_stdexception) { throw std::runtime_error("Std exception throw test"); }
+
+
+
+
+
+
+//TEST_V(shouldpass, )

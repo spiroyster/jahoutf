@@ -160,7 +160,6 @@ namespace jahoutf
     class fixture
     {
     public:
-        test* jahoutf_current_test_;
         virtual void Setup() {}
         virtual void TearDown() {}
     };
@@ -179,6 +178,7 @@ namespace jahoutf
         public:\
             wrapper(jahoutf::test* t) { jahoutf_current_test_ = t; }\
             void wrapper_test_body();\
+            test* jahoutf_current_test_;\
         };\
         testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
         void jahoutf_test_invoke()\
@@ -203,6 +203,102 @@ namespace jahoutf
     testname TESTCLASSNAME(testname); }\
 void testgroup::testname::wrapper::wrapper_test_body()
 
+namespace jahoutf
+{
+    template<class T>
+    class values
+    {  
+        std::vector<T> values_;
+    public:
+        values(const std::vector<T>& v) : values_(v) {}
+        const std::vector<T>& get() const { return values_; }
+    };
+}
+
+//#define STR(x) x STR(testgroup)STR(testname)
+#define TESTVALUEPARAMSNAME(testgroup, testname) testname ## testgroup ## _
+
+#define TEST_VALUES_DECLARE(testgroup, testname, testvalues) namespace testgroup\
+{\
+    auto TESTVALUEPARAMSNAME(testgroup, testname) = testvalues;\
+    class testname : public jahoutf::test\
+    {\
+    public:\
+        class wrapper : public jahoutf::test\
+        {\
+        public:\
+            wrapper(jahoutf::test* t, unsigned int n)\
+            :   jahoutf::test(t->jahoutf_test_group(), t->jahoutf_test_name() + "[" + std::to_string(n) + "]"), param_id_(n)\
+            {\
+            }\
+            void jahoutf_test_body();\
+            auto GetParam() { return TESTVALUEPARAMSNAME(testgroup, testname).get()[param_id_]; }\
+            unsigned int param_id_;\
+        };\
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
+        void jahoutf_test_invoke()\
+        {\
+            for (unsigned int p = 0; p < TESTVALUEPARAMSNAME(testgroup, testname).get().size(); ++p)\
+            {\
+                try\
+                {\
+                    wrapper w(this, p);\
+                    w.jahoutf_test_invoke();\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(test_body)\
+            }\
+        }\
+        void jahoutf_test_body() {}\
+    };\
+    testname TESTCLASSNAME(testname);\
+}\
+void testgroup::testname::wrapper::jahoutf_test_body()
+
+#define TESTFIXTURENAME(x) x
+
+#define TEST_FIXTURE_VALUES_DECLARE(testgroup, testname, testfixture, testvalues) namespace testgroup\
+{\
+    auto TESTVALUEPARAMSNAME(testgroup, testname) = testvalues;\
+    class testname : public jahoutf::test\
+    {\
+    public:\
+        class wrapper : public jahoutf::test, public testfixture \
+        {\
+        public:\
+            wrapper(jahoutf::test* t, unsigned int param_id)\
+            :   jahoutf::test(t->jahoutf_test_group(), t->jahoutf_test_name() + "[" + std::to_string(param_id) + "]"), param_id_(param_id) \
+            {               \
+            }\
+            void jahoutf_test_body();\
+            auto GetParam() { return TESTVALUEPARAMSNAME(testgroup, testname).get()[param_id_]; }\
+            unsigned int param_id_;\
+        };\
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
+        void jahoutf_test_invoke()\
+        {\
+            for (unsigned int p = 0; p < TESTVALUEPARAMSNAME(testgroup, testname).get().size(); ++p)\
+            {\
+                try\
+                { \
+                    wrapper w(this, p); current_fixture_ = &w;\
+                    try \
+                    { \
+                        current_fixture_->Setup();\
+                        current_fixture_->jahoutf_test_invoke();\
+                        try { current_fixture_->TearDown(); } \
+                        JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
+                    }\
+                    JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
+            }\
+        }\
+        void jahoutf_test_body() { current_fixture_->jahoutf_test_body(); }\
+        wrapper* current_fixture_;\
+    };\
+    testname TESTCLASSNAME(testname);\
+}\
+void testgroup::testname::wrapper::jahoutf_test_body()
 
 namespace jahoutf
 {
@@ -218,14 +314,7 @@ namespace jahoutf
         unsigned int param_id_;
     };
 
-    template<class T>
-    class values
-    {  
-        std::vector<T> values_;
-    public:
-        values(const std::vector<T>& v) : values_(v) {}
-        const std::vector<T>& get() const { return values_; }
-    };
+    
 }
 
 #define TEST_P(testfixture, testname) class testname : public testfixture, public jahoutf::test\
@@ -556,6 +645,16 @@ void main_impl(const std::vector<std::string>& args)
 #define TEST_FIXTURE_2(testfixture, testname) TEST_FIXTURE_DECLARE(testfixture,, testname)
 #define GET_TEST_FIXTURE_MACRO(_1,_2,_3, TFNAME,...) TFNAME
 #define TEST_F(...) GET_TEST_FIXTURE_MACRO(__VA_ARGS__, TEST_FIXTURE_1, TEST_FIXTURE_2)(__VA_ARGS__)
+
+#define TEST_VALUES_1(testgroup, testname, testvalues) TEST_VALUES_DECLARE(testgroup, testname, testvalues)
+#define TEST_VALUES_2(testname, testvalues) TEST_VALUES_DECLARE(,testname, testvalues)
+#define GET_TEST_VALUES_MACRO(_1,_2,_3, TVNAME,...) TVNAME
+#define TEST_VALUES(...) GET_TEST_VALUES_MACRO(__VA_ARGS__, TEST_VALUES_1, TEST_VALUES_2)(__VA_ARGS__)
+
+#define TEST_F_VALUES_1(testgroup, testname, testfixture, testvalues) TEST_FIXTURE_VALUES_DECLARE(testgroup, testname, testfixture, testvalues)
+#define TEST_F_VALUES_2(testname, testfixture, testvalues) TEST_FIXTURE_VALUES_DECLARE(,testname, testfixture, testvalues)
+#define GET_TEST_F_VALUES_MACRO(_1,_2,_3,_4, TFVNAME,...) TFVNAME
+#define TEST_F_VALUES(...) GET_TEST_F_VALUES_MACRO(__VA_ARGS__, TEST_F_VALUES_1, TEST_F_VALUES_2)(__VA_ARGS__)
 
 // Parameterised tests...
 
