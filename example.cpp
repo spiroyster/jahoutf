@@ -1,10 +1,24 @@
 #include "jahoutf.hpp"
 
 // Declare test program main, and run all the tests.
-JAHOUTF_MAIN { RUNALL }
+JAHOUTF_TEST_RUNNER { RUNALL }
 
-// Create a test called test1, in the group helloTestWorld which passes.
-TEST(helloTestWorld, test1) { SUCCESS }
 
-// Create a test called test2, in the group helloTestWorld which fails.
-TEST(helloTestWorld, test2) { FAIL }
+struct testdata
+{
+    std::string str_;
+    std::string pattern_;
+    bool expected_;
+};
+
+// // Test the str matching...
+// TEST_VALUES(patternmatching, jahoutf::values<testdata>({ { "abcdefghijlklmnopqrstuvwxyz", "a*", true },
+//  { "abcdefghijlklmnopqrstuvwxyz", "*a*", true },
+//  { "abcdefghijlklmnopqrstuvwxyz", "**a*", true },
+//  { "abcdefghijlklmnopqrstuvwxyz", "a**", true },
+//  { "abcdefghijlklmnopqrstuvwxyz", "a", false }
+//  }))
+// {
+//     auto p = jahoutf_value();
+//     EXPECT(jahoutf::_::pattern_match(p.str_, p.pattern_))
+// }

@@ -1,7 +1,7 @@
+
 #ifndef JAHOUTF_HPP
 #define JAHOUTF_HPP
 
-#include <algorithm>
 #include <exception>
 #include <chrono>
 #include <string>
@@ -39,7 +39,8 @@ namespace jahoutf
         class test_result
         {
         public:
-            test_result(const std::string& g, const std::string& n) : group(g), name(n), duration_ms(0) {}
+            test_result(const std::string& g, const std::string& n) : group(g), name(n) {}
+            
             unsigned int total() const { return success.size() + failure.size(); }
             std::string name, group, exception, exception_location;
             std::list<std::string> success, failure;
@@ -49,18 +50,17 @@ namespace jahoutf
         class instance
         {
         public:
+            ~instance();
+
             typedef std::map<std::string, std::list<test*>> test_list;
             typedef std::list<test_result> result_list;
 
-            test_list test_runner_;
-            std::list<std::string> test_runner_patterns_;
+            test_list tests_;
             result_list results_;        
             std::shared_ptr<event_interface> event_;
             std::list<std::shared_ptr<report_interface>> reports_;
 
             bool shuffle_ = false;
-            bool list_ = false;
-            std::string suite_name_;
         };
     }
 
@@ -73,7 +73,6 @@ namespace jahoutf
     class event_interface
     {
     public:
-        virtual void message(const std::string& msg) {}
         virtual void case_start(const test& test) {}
         virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
         virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
@@ -88,14 +87,15 @@ namespace jahoutf
     class test
     {
     public:
-        test(const std::string& group, const std::string& name) : group_(group), name_(name), result_(0)
+        test(const std::string& group, const std::string& name)
         {
-            jahoutf_current_test_ = this;
+            session().results_.push_back(_::test_result(group, name));
+            result_ = &session().results_.back();
         }
 
         virtual void jahoutf_test_invoke()
         {
-            test_result_install();
+            jahoutf_current_test_ = this;
             session().event_->case_start(*this);
             std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
             try { jahoutf_test_body(); }
@@ -120,76 +120,265 @@ namespace jahoutf
         virtual void jahoutf_exception_thrown(const std::string& location, const std::string& e)
         {
             result_->exception_location = location; result_->exception = e;
-            if (result_)
-                result_->failure.push_back(e);
             session().event_->case_exception(*this, e);
         }
 
-        const std::string& jahoutf_test_group() const { return group_; }
-        const std::string& jahoutf_test_name() const { return name_; }
+        const std::string& jahoutf_test_group() const { return result_->group; }
+        const std::string& jahoutf_test_name() const { return result_->name; }
         const _::test_result& jahoutf_test_result() const { return *result_; }
-        bool jahoutf_test_disabled() const { return disabled_; }
-        void jahoutf_test_disabled(bool disabled) { disabled_ = disabled; }
 
         virtual void jahoutf_test_body() = 0;
     protected:
         test* jahoutf_current_test_;
-        bool disabled_ = false;
 
-        void test_runner_install()
-        {
-            session().test_runner_[group_].push_back(this);
-        }
-        void test_result_install()
-        {
-            if (!result_)
-            {
-                session().results_.push_back(_::test_result(group_, name_));
-                result_ = &session().results_.back();
-            }
-        }
-        
-
-        _::test_result* result_;
     private:
-        std::string group_, name_;
+        _::test_result* result_;
+
     };
 
+}   // namespace jahoutf
+
+// A test case with just name...
+#define TESTCLASSNAME(x) x
+
+// Test case...
+#define TEST_CASE_DECLARE(testgroup, testname) namespace testgroup \
+{ \
+    class testname : public jahoutf::test \
+    {    \
+    public: \
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); } \
+        void jahoutf_test_body(); \
+    }; \
+    testname TESTCLASSNAME(testname); } \
+void testgroup::testname::jahoutf_test_body()
+
+
+namespace jahoutf
+{
 
     class fixture
     {
     public:
         virtual void Setup() {}
         virtual void TearDown() {}
-        virtual void prep(const void* param_value) {}
     };
 
+}    // namespace jahoutf
+
+
+// Test fixture...
+#define TEST_FIXTURE_DECLARE(testfixture, testgroup, testname) namespace testgroup \
+{ \
+    class testname : public jahoutf::test \
+    { \
+    public:\
+        class wrapper : public testfixture\
+        {\
+        public:\
+            wrapper(jahoutf::test* t) { jahoutf_current_test_ = t; }\
+            void wrapper_test_body();\
+            test* jahoutf_current_test_;\
+        };\
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
+        void jahoutf_test_invoke()\
+        {\
+            try\
+            { \
+                wrapper w(this); current_fixture_ = &w;\
+                try \
+                { \
+                    current_fixture_->Setup();\
+                    test::jahoutf_test_invoke(); \
+                    try { current_fixture_->TearDown(); } \
+                    JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
+            }\
+            JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
+        }\
+        void jahoutf_test_body() { current_fixture_->wrapper_test_body(); }\
+        wrapper* current_fixture_;\
+    };\
+    testname TESTCLASSNAME(testname); }\
+void testgroup::testname::wrapper::wrapper_test_body()
+
+namespace jahoutf
+{
     template<class T>
     class values
     {  
         std::vector<T> values_;
     public:
         values(const std::vector<T>& v) : values_(v) {}
-        const std::vector<T>& get_values() const { return values_; }
+        const std::vector<T>& get() const { return values_; }
     };
+}
 
+//#define STR(x) x STR(testgroup)STR(testname)
+#define TESTVALUEPARAMSNAME(testgroup, testname) testname ## testgroup ## _
+
+#define TEST_VALUES_DECLARE(testgroup, testname, testvalues) namespace testgroup\
+{\
+    auto TESTVALUEPARAMSNAME(testgroup, testname) = testvalues;\
+    class testname : public jahoutf::test\
+    {\
+    public:\
+        class wrapper : public jahoutf::test\
+        {\
+        public:\
+            wrapper(jahoutf::test* t, unsigned int n)\
+            :   jahoutf::test(t->jahoutf_test_group(), t->jahoutf_test_name() + "[" + std::to_string(n) + "]"), param_id_(n)\
+            {\
+            }\
+            void jahoutf_test_body();\
+            auto GetParam() { return TESTVALUEPARAMSNAME(testgroup, testname).get()[param_id_]; }\
+            unsigned int param_id_;\
+        };\
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
+        void jahoutf_test_invoke()\
+        {\
+            for (unsigned int p = 0; p < TESTVALUEPARAMSNAME(testgroup, testname).get().size(); ++p)\
+            {\
+                try\
+                {\
+                    wrapper w(this, p);\
+                    w.jahoutf_test_invoke();\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(test_body)\
+            }\
+        }\
+        void jahoutf_test_body() {}\
+    };\
+    testname TESTCLASSNAME(testname);\
+}\
+void testgroup::testname::wrapper::jahoutf_test_body()
+
+#define TESTFIXTURENAME(x) x
+
+#define TEST_FIXTURE_VALUES_DECLARE(testgroup, testname, testfixture, testvalues) namespace testgroup\
+{\
+    auto TESTVALUEPARAMSNAME(testgroup, testname) = testvalues;\
+    class testname : public jahoutf::test\
+    {\
+    public:\
+        class wrapper : public jahoutf::test, public testfixture \
+        {\
+        public:\
+            wrapper(jahoutf::test* t, unsigned int param_id)\
+            :   jahoutf::test(t->jahoutf_test_group(), t->jahoutf_test_name() + "[" + std::to_string(param_id) + "]"), param_id_(param_id) \
+            {               \
+            }\
+            void jahoutf_test_body();\
+            auto GetParam() { return TESTVALUEPARAMSNAME(testgroup, testname).get()[param_id_]; }\
+            unsigned int param_id_;\
+        };\
+        testname() : jahoutf::test(#testgroup, #testname) { jahoutf::session().tests_[#testgroup].push_back(this); }\
+        void jahoutf_test_invoke()\
+        {\
+            for (unsigned int p = 0; p < TESTVALUEPARAMSNAME(testgroup, testname).get().size(); ++p)\
+            {\
+                try\
+                { \
+                    wrapper w(this, p); current_fixture_ = &w;\
+                    try \
+                    { \
+                        current_fixture_->Setup();\
+                        current_fixture_->jahoutf_test_invoke();\
+                        try { current_fixture_->TearDown(); } \
+                        JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
+                    }\
+                    JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
+            }\
+        }\
+        void jahoutf_test_body() { current_fixture_->jahoutf_test_body(); }\
+        wrapper* current_fixture_;\
+    };\
+    testname TESTCLASSNAME(testname);\
+}\
+void testgroup::testname::wrapper::jahoutf_test_body()
+
+namespace jahoutf
+{
     template <class T>
-    class fixture_param : public fixture
+    class param
     {
     public:
-        const T* param_value_ = 0;
-        void prep(const void* p)
-        {
-            param_value_ = reinterpret_cast<const T*>(p);
-        }
-        const T& jahoutf_param() 
-        {
-            if (param_value_)
-                return *param_value_; 
-            throw std::runtime_error("Test does not support parameters."); 
-        }
+        param() {}
+        virtual void Setup() {}
+        virtual void TearDown() {}
+        const T& GetParam() const { return *param_; };
+        const T* param_;
+        unsigned int param_id_;
     };
 
+    
+}
+
+#define TEST_P(testfixture, testname) class testname : public testfixture, public jahoutf::test\
+{\
+public:\
+    testname(jahoutf::test* t, unsigned int n)\
+    :   jahoutf::test(t->jahoutf_test_group(), t->jahoutf_test_name() + "[" + std::to_string(n) + "]")\
+    {\
+        param_id_ = n;\
+    }\
+    void jahoutf_test_body();\
+};\
+void testname::jahoutf_test_body()
+
+#define INSTANTIATE_TEST_P(testgroup, testname, testfixture, testvalues) namespace testgroup \
+{\
+    class testname : public jahoutf::test\
+    {\
+    public:\
+        testname()\
+        : jahoutf::test(#testgroup, #testname)\
+        {\
+            jahoutf::session().tests_[#testgroup].push_back(this);\
+        }\
+        void jahoutf_test_invoke()\
+        {\
+            auto params_ = testvalues;\
+            for (unsigned int p = 0; p < params_.get().size(); ++p)\
+            {\
+                try\
+                {\
+                    testfixture w(this, p);\
+                    w.param_ = &params_.get()[p]; \
+                    current_fixture_ = &w;\
+                    try\
+                    { \
+                        current_fixture_->Setup();\
+                        current_fixture_->jahoutf_test_invoke();\
+                        try { current_fixture_->TearDown(); } \
+                        JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
+                    }\
+                    JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
+                }\
+                JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
+            }\
+        }\
+        void jahoutf_test_body() {}\
+        testfixture* current_fixture_;\
+    };\
+    testname TESTCLASSNAME(testname);\
+}
+
+
+
+
+
+
+
+
+
+
+
+namespace jahoutf
+{
     class section : public test
     {
     public:
@@ -207,140 +396,10 @@ namespace jahoutf
         }
         void jahoutf_test_body() {}
     };
+}
 
+#define TEST_SECTION_DECLARE(testgroup, testname) if (std::unique_ptr<jahoutf::section> jahoutf_current_test_ = std::make_unique<jahoutf::section>(#testgroup, #testname))
 
-}   // namespace jahoutf
-
-// A test case with just name...
-#define JAHOUTF_TESTCLASSNAME(x) x
-
-// Test case...
-#define JAHOUTF_TEST_CASE_DEFINE(testgroup, testname) namespace testgroup \
-{ \
-    class testname : public jahoutf::test \
-    {    \
-    public: \
-        testname() : jahoutf::test(#testgroup, #testname) { test_runner_install(); } \
-        void jahoutf_test_body(); \
-    }; \
-    testname JAHOUTF_TESTCLASSNAME(testname); } \
-void testgroup::testname::jahoutf_test_body()
-
-// Test fixture...
-#define JAHOUTF_TEST_FIXTURE_DEFINE(testfixture, testgroup, testname) namespace testgroup \
-{ \
-    class testname : public jahoutf::test \
-    { \
-    public:\
-        class wrapper : public testfixture, public jahoutf::test\
-        {\
-        public:\
-            wrapper() : jahoutf::test(#testgroup, #testname) {}\
-            void jahoutf_test_body();\
-        };\
-        testname() : jahoutf::test(#testgroup, #testname) { test_runner_install(); }\
-        void jahoutf_test_invoke()\
-        {\
-            jahoutf::_::test_result r(jahoutf_test_group(), jahoutf_test_name());\
-            result_ = &r;\
-            try\
-            { \
-                wrapper w;\
-                try \
-                { \
-                    w.Setup();\
-                    w.jahoutf_test_invoke();\
-                    try { w.TearDown(); } \
-                    JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
-                }\
-                JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
-            }\
-            JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
-        }\
-        void jahoutf_test_body() {}\
-    };\
-    testname JAHOUTF_TESTCLASSNAME(testname); }\
-void testgroup::testname::wrapper::jahoutf_test_body()
-
-#define JAHOUTF_TESTPARAMSNAME(testgroup, testname) testname ## testgroup ## _
-
-// Test case values...
-#define JAHOUTF_TEST_CASE_VALUES_DEFINE(testgroup, testname, testvalues) namespace testgroup\
-{\
-    auto JAHOUTF_TESTPARAMSNAME(testgroup, testname) = testvalues;\
-    class testname : public jahoutf::test\
-    {\
-    public:\
-        class wrapper : public jahoutf::test\
-        {\
-        public:\
-            wrapper(unsigned int n) : jahoutf::test(#testgroup, #testname + std::string("[") + std::to_string(n) + std::string("]")), param_id_(n) {}\
-            void jahoutf_test_body();\
-            const auto& jahoutf_value() { return JAHOUTF_TESTPARAMSNAME(testgroup, testname).get_values()[param_id_]; }\
-            unsigned int param_id_;\
-        };\
-        testname() : jahoutf::test(#testgroup, #testname) { test_runner_install(); }\
-        void jahoutf_test_invoke()\
-        {\
-            for (unsigned int p = 0; p < JAHOUTF_TESTPARAMSNAME(testgroup, testname).get_values().size(); ++p)\
-            {\
-                try\
-                {\
-                    wrapper w(p);\
-                    w.jahoutf_test_invoke();\
-                }\
-                JAHOUTF_CATCH_EXCEPTION(test_body)\
-            }\
-        }\
-        void jahoutf_test_body() {}\
-    };\
-    testname JAHOUTF_TESTCLASSNAME(testname);\
-}\
-void testgroup::testname::wrapper::jahoutf_test_body()
-
-// Test fixture values... TEST_F_VALUES
-#define JAHOUTF_TEST_FIXTURE_VALUES_DEFINE(testgroup, testname, testfixture, testvalues) namespace testgroup\
-{\
-    auto JAHOUTF_TESTPARAMSNAME(testgroup, testname) = testvalues;\
-    class testname : public jahoutf::test\
-    {\
-    public:\
-        class wrapper : public jahoutf::test, public testfixture \
-        {\
-        public:\
-            wrapper(unsigned int n) : jahoutf::test(#testgroup, #testname + std::string("[") + std::to_string(n) + std::string("]")), param_id_(n) {}\
-            void jahoutf_test_body();\
-            const auto& jahoutf_value() { return JAHOUTF_TESTPARAMSNAME(testgroup, testname).get_values()[param_id_]; }\
-            unsigned int param_id_;\
-        };\
-        testname() : jahoutf::test(#testgroup, #testname) { test_runner_install(); }\
-        void jahoutf_test_invoke()\
-        {\
-            for (unsigned int p = 0; p < JAHOUTF_TESTPARAMSNAME(testgroup, testname).get_values().size(); ++p)\
-            {\
-                try\
-                { \
-                    wrapper w(p);\
-                    w.prep(&JAHOUTF_TESTPARAMSNAME(testgroup, testname).get_values()[p]);\
-                    try \
-                    { \
-                        w.Setup();\
-                        w.jahoutf_test_invoke();\
-                        try { w.TearDown(); } \
-                        JAHOUTF_CATCH_EXCEPTION(fixture_teardown)\
-                    }\
-                    JAHOUTF_CATCH_EXCEPTION(fixture_setup)\
-                }\
-                JAHOUTF_CATCH_EXCEPTION(fixture_construct)\
-            }\
-        }\
-        void jahoutf_test_body() {}\
-    };\
-    testname JAHOUTF_TESTCLASSNAME(testname);\
-}\
-void testgroup::testname::wrapper::jahoutf_test_body()
-
-#define JAHOUTF_TEST_SECTION_DEFINE(testgroup, testname) if (std::unique_ptr<jahoutf::section> jahoutf_current_test_ = std::make_unique<jahoutf::section>(#testgroup, #testname))
 
 
 
@@ -380,7 +439,6 @@ namespace jahoutf
             oss << "|" << Green(std::string(s_bar, '=')) << Red(std::string(f_bar, '=')) << "| ";
             return oss.str();
         }
-        virtual void message(const std::string& msg) { std::cout << msg; }
         virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) { if (!msg.empty()) { std::cout << header(test) << Cyan(filename + ":") << Yellow(std::to_string(lineNum)) << msg << "\n"; } }
         virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) { std::cout << header(test) << Red("fail ") << Cyan(filename + ":") << Yellow(std::to_string(lineNum)); if (!msg.empty()) { std::cout << msg << "\n"; } }
         virtual void case_exception(const test& test, const std::string& exc)  { std::cout << header(test) << Magenta("EXCEPTION ") << "thrown in " << test.jahoutf_test_result().exception_location << "\n" << exc; }
@@ -394,19 +452,19 @@ namespace jahoutf
         }
         virtual void suite_start(const _::instance& session) 
         {
-            unsigned int test_count = 0, group_count = 0, disabled_count = 0;
-            for (auto g = session.test_runner_.begin(); g != session.test_runner_.end(); ++g, ++group_count)
+            unsigned int test_count = 0, group_count = 0;
+            for (auto g = session.tests_.begin(); g != session.tests_.end(); ++g, ++group_count)
                 test_count += g->second.size();
-                
-            std::cout << Inverse("Running " + std::to_string(test_count) + " tests (" + std::to_string(group_count) + " groups)") << " (type \"?\" for help)\n";
             if (session.shuffle_)
                 std::cout << Cyan("[SHUFFLE] ");
+            std::cout << Inverse("Running " + std::to_string(test_count) + " tests (" + std::to_string(group_count) + " groups)") << "\n";
         }
         virtual void suite_end(const _::instance& session) 
         {
             std::cout << "\n" << Inverse("Results");
             struct group_result { unsigned int successful_assertions = 0, failed_assertions = 0, test_passes = 0, test_failures = 0, group_duration_ms = 0; };
             std::map<std::string, group_result> group_results;
+            group_result total;
             for (auto r = session.results_.begin(); r != session.results_.end(); ++r)
             {
                 group_result& g = group_results[r->group];
@@ -417,19 +475,18 @@ namespace jahoutf
                     ++g.test_passes;
                 else
                     ++g.test_failures;
+                total.group_duration_ms += g.group_duration_ms;
+                total.successful_assertions += g.successful_assertions;
+                total.failed_assertions += g.failed_assertions;
+                total.test_passes += g.test_passes;
+                total.test_failures += g.test_failures;
             }
-            group_result total;
             for (auto g = group_results.begin(); g != group_results.end(); ++g)
             {
                 std::cout << "\n" << results_bar(g->second.test_passes, g->second.test_failures) << " {" << Cyan(g->first) << "} ";
                 std::cout << std::to_string(g->second.test_passes) << "/" << std::to_string(g->second.test_passes + g->second.test_failures) << " tests passed ";
                 std::cout << "(" << std::to_string(g->second.successful_assertions) << "/" << std::to_string(g->second.successful_assertions + g->second.failed_assertions) << " assertions).";
                 std::cout << duration(g->second.group_duration_ms);
-                total.group_duration_ms += g->second.group_duration_ms;
-                total.successful_assertions += g->second.successful_assertions;
-                total.failed_assertions += g->second.failed_assertions;
-                total.test_passes += g->second.test_passes;
-                total.test_failures += g->second.test_failures;
             }
             std::cout << "\n" << Inverse("Total");
             std::cout << "\n" << results_bar(total.test_passes, total.test_failures);
@@ -449,7 +506,7 @@ namespace jahoutf
         {
             std::ostringstream oss;
             oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            //oss << "<testsuite name=\"" << jahoutf::session().suite_name_ << "\" tests=\"" << session(). << "\" failures=\"" << 0 " disabled="0" errors="0" time="0.004">"
+            //oss << "<testsuite name=\"" << session EWDesignDay2020BehaviourTest" tests="2" failures="0" disabled="0" errors="0" time="0.004">"
 
             // <testsuite name="EWDesignDay2020BehaviourTest" tests="2" failures="0" disabled="0" errors="0" time="0.004">
             //   <testcase name="GetSizingPeriodOptions" status="run" time="0" classname="EWDesignDay2020BehaviourTest" />
@@ -464,123 +521,50 @@ namespace jahoutf
     };
 
 
-    // test runner
+    // private stuff...
     namespace _
     {
 
-        static bool test_name_pattern_match(const jahoutf::test& t)
+        static void shuffle(instance::test_list& tests)
         {
-            std::string test_group_and_name(t.jahoutf_test_group() + "." + t.jahoutf_test_name());
-            for (auto patternItr = session().test_runner_patterns_.begin(); patternItr != session().test_runner_patterns_.end(); ++patternItr)
-            {
-                if (*patternItr == test_group_and_name)
-                    return true;
-            }
-            return false;
-        }
 
-        static void list_tests(instance::test_list& tests)
-        {
-            for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
-                for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
-                    session().event_->message(groupItr->first + "." + (*testItr)->jahoutf_test_name() + "\n");
-        }
-
-        static void disable_all_tests(instance::test_list& tests)
-        {
-            for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
-                for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
-                    (*testItr)->jahoutf_test_disabled(true);
         }
 
         static void run_tests(instance::test_list& tests)
         {  
-            if (session().list_)
-            {
-                list_tests(tests);
-                return;
-            }
-
-            // Process any pattern matching we need to do...
-            if (!session().test_runner_patterns_.empty())
-            {
-                disable_all_tests(tests);
-                for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
-                    for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
-                        if (test_name_pattern_match(**testItr))
-                            (*testItr)->jahoutf_test_disabled(false);
-            }
-
             session().event_->suite_start(session());
+            if (session().shuffle_)
+                shuffle(tests);
+
             unsigned int tests_count = 0, tests_passed = 0, tests_failed = 0;
             for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
-            {
-                //if (session().shuffle_)
-                 //   std::random_shuffle(groupItr->second.begin(), groupItr->second.end());
                 for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
-                {
-                    if (!(*testItr)->jahoutf_test_disabled())
-                        (*testItr)->jahoutf_test_invoke();
-                }    
-            }
-                
+                    (*testItr)->jahoutf_test_invoke();
+            
             session().event_->suite_end(session());
         }
 
-        static std::string help_message()
+        static bool process_arguments(const std::string& arg)
         {
-            std::ostringstream oss;
-            oss << "jahoutf test runner.\n";
-            oss << "Usage: > namefExe [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n";
-            oss << "\n";
-            oss << "-list    : list the tests in this test program.\n";
-            oss << "-shuffle : shuffle the tests before running them.\n";
-            oss << "-silent  : silence events. No consol output.\n";
-            oss << "-xunit   : specify an xml filename to report xUnit to.\n";
-            oss << "\n";
-            oss << "If one or more tests are specfied to run, all tests except those matching the name patterns will be disabled.\n";
-            oss << "To run a single test, use {groupname}.{testname} format (i.e group and name seperated by dot).\n";
-            oss << "Wildcards supported e.g.\n";
-            oss << "All tests in group:  groupname.*\n";
-            oss << "All groups with a specific test name: *.testname\n";
-            return oss.str();
-        }
-
-        static void process_arguments(const std::vector<std::string>& args)
-        {
-            for (unsigned int arg = 1; arg < args.size(); ++arg)
+            // check if this is a jahoutf argument...
+            if (size_t itr = arg.find("-jahoutf_") != std::string::npos)
             {
-                if (args[arg] == "-silent")
+                std::string jahoutf_arg = arg.substr(itr+8);
+                if (jahoutf_arg == "silent") 
                     jahoutf::session().event_.reset(new event_interface());
-                else if (args[arg] == "-shuffle")
+                else if (jahoutf_arg == "shuffle") 
                     jahoutf::session().shuffle_ = true;
-                else if (args[arg] == "-xunit=")
-                    jahoutf::session().reports_.push_back(std::make_shared<jahoutf::xUnit>(args[arg].substr(7)));
-                else if (args[arg] == "-list")
-                    jahoutf::session().list_ = true;
-                else if (args[arg] == "?")
+                else if (size_t filename = jahoutf_arg.find("xUnit=") != std::string::npos)
+                    jahoutf::session().reports_.push_back(std::make_shared<jahoutf::xUnit>(jahoutf_arg.substr(filename+4)));
+                else if (jahoutf_arg == "run")
                 {
-                    jahoutf::session().event_->message(help_message());
-                    jahoutf::session().test_runner_.clear();
+                    // process the tests we have to only run them...
                 }
-                else
-                    jahoutf::session().test_runner_patterns_.push_back(args[arg]);    
+                else 
+                    std::cerr << "jahoutf argument invalid : " << jahoutf_arg << '\n';
+                return true;
             }
-        }
-
-        static void post_report(const instance& session)
-        {
-            for (auto reportItr = session.reports_.begin(); reportItr != session.reports_.end(); ++reportItr)
-            {
-                try 
-                { 
-                    (*reportItr)->report(session); 
-                }
-                catch (...) 
-                {
-
-                }
-            }
+            return false;
         }
     }
 
@@ -592,11 +576,19 @@ namespace jahoutf
 
 // Macro to initialise jahoutf when using custom main entry func... only needs to be used if not using JAHOUTF_MAIN and instead uses own custom main function.
 //  jahoutf_XXX arguments not supported with 
-#define JAHOUTF_INSTANCE namespace jahoutf \
+#define JAHOUTF_INIT namespace jahoutf \
 { \
     namespace _ \
     { \
         static std::unique_ptr<instance> session_; \
+        instance::~instance()\
+        {\
+            for (auto reportItr = reports_.begin(); reportItr != reports_.end(); ++reportItr)\
+            {\
+                try { (*reportItr)->report(*this); }\
+                catch (...) {}\
+            }\
+        }\
     } \
     _::instance& session() \
     { \
@@ -611,54 +603,61 @@ namespace jahoutf
 
 // Macro for defining main function, user can perform custom global setup and teardown (applied to entire test program) also processed -jahoutf arguments.
 // Must explicitly call RUNALL, RUNALL_RANDOMIZED or explicit tests?
-#define JAHOUTF_TEST_RUNNER JAHOUTF_INSTANCE \
-void test_runner_main(); \
+#define JAHOUTF_MAIN JAHOUTF_INIT \
+void main_impl(const std::vector<std::string>& args); \
 int main(int argc, char** argv) \
 { \
     std::vector<std::string> args; \
-    for (unsigned int c = 0; c < argc; ++c) { args.push_back(std::string(*(argv+c))); }\
-    jahoutf::_::process_arguments(args);\
-    if (!jahoutf::session().test_runner_.empty()) { test_runner_main(); } \
-    if (!jahoutf::session().results_.empty()) { jahoutf::_::post_report(jahoutf::session()); }\
+    for (unsigned int c = 0; c < argc; ++c) \
+    { \
+        std::string arg(*(argv+c)); \
+        if (!jahoutf::_::process_arguments(arg)) \
+            args.push_back(arg); \
+    } \
+    main_impl(args); \
     return 0; \
 } \
-void test_runner_main()
+void main_impl(const std::vector<std::string>& args)
 
 // Run all the tests.... used if user has global startup and teardown functionality in main....
-#define RUNALL jahoutf::_::run_tests(jahoutf::session().test_runner_);
+#define RUNALL jahoutf::_::run_tests(jahoutf::session().tests_);
 // Shuffle all the tests before running them (not applicable to section/inline tests)...
 #define SHUFFLE jahoutf::session().shuffle_ = true; RUNALL
 // Silence all the events
 #define SILENT jahoutf::session().event_.reset(new jahoutf::_::instance::event_interface());
 // Maybe post? Post current results to report...
-#define REPORT(x) x;
-#define EVENT(x) x
 
 
-#define TEST_CASE_1(testgroup, testname) JAHOUTF_TEST_CASE_DEFINE(testgroup, testname)
-#define TEST_CASE_2(testname) JAHOUTF_TEST_CASE_DEFINE(, testname)
+
+#define TEST_CASE_1(testgroup, testname) TEST_CASE_DECLARE(testgroup, testname)
+#define TEST_CASE_2(testname) TEST_CASE_DECLARE(, testname)
 #define GET_TEST_CASE_MACRO(_1,_2,TCNAME,...) TCNAME
 #define TEST(...) GET_TEST_CASE_MACRO(__VA_ARGS__, TEST_CASE_1, TEST_CASE_2)(__VA_ARGS__)
 
-#define TEST_SECTION_1(testgroup, testname) JAHOUTF_TEST_SECTION_DEFINE(testgroup, testname)
-#define TEST_SECTION_2(testname) JAHOUTF_TEST_SECTION_DEFINE(, testname)
+#define TEST_SECTION_1(testgroup, testname) TEST_SECTION_DECLARE(testgroup, testname)
+#define TEST_SECTION_2(testname) TEST_SECTION_DECLARE(, testname)
 #define GET_TEST_SECTION_MACRO(_1,_2,TSNAME,...) TSNAME
-#define TEST_S(...) GET_TEST_SECTION_MACRO(__VA_ARGS__, TEST_SECTION_1, TEST_SECTION_2)(__VA_ARGS__)
+#define TEST_SECTION(...) GET_TEST_SECTION_MACRO(__VA_ARGS__, TEST_SECTION_1, TEST_SECTION_2)(__VA_ARGS__)
 
-#define TEST_FIXTURE_1(testgroup, testname, testfixture) JAHOUTF_TEST_FIXTURE_DEFINE(testfixture, testgroup, testname)
-#define TEST_FIXTURE_2(testname, testfixture) JAHOUTF_TEST_FIXTURE_DEFINE(testfixture,, testname)
+#define TEST_FIXTURE_1(testfixture, testgroup, testname) TEST_FIXTURE_DECLARE(testfixture, testgroup, testname)
+#define TEST_FIXTURE_2(testfixture, testname) TEST_FIXTURE_DECLARE(testfixture,, testname)
 #define GET_TEST_FIXTURE_MACRO(_1,_2,_3, TFNAME,...) TFNAME
 #define TEST_F(...) GET_TEST_FIXTURE_MACRO(__VA_ARGS__, TEST_FIXTURE_1, TEST_FIXTURE_2)(__VA_ARGS__)
 
-#define TEST_VALUES_1(testgroup, testname, testvalues) JAHOUTF_TEST_CASE_VALUES_DEFINE(testgroup, testname, testvalues)
-#define TEST_VALUES_2(testname, testvalues) JAHOUTF_TEST_CASE_VALUES_DEFINE(,testname, testvalues)
+#define TEST_VALUES_1(testgroup, testname, testvalues) TEST_VALUES_DECLARE(testgroup, testname, testvalues)
+#define TEST_VALUES_2(testname, testvalues) TEST_VALUES_DECLARE(,testname, testvalues)
 #define GET_TEST_VALUES_MACRO(_1,_2,_3, TVNAME,...) TVNAME
 #define TEST_VALUES(...) GET_TEST_VALUES_MACRO(__VA_ARGS__, TEST_VALUES_1, TEST_VALUES_2)(__VA_ARGS__)
 
-#define TEST_F_VALUES_1(testgroup, testname, testfixture, testvalues) JAHOUTF_TEST_FIXTURE_VALUES_DEFINE(testgroup, testname, testfixture, testvalues)
-#define TEST_F_VALUES_2(testname, testfixture, testvalues) JAHOUTF_TEST_FIXTURE_VALUES_DEFINE(,testname, testfixture, testvalues)
+#define TEST_F_VALUES_1(testgroup, testname, testfixture, testvalues) TEST_FIXTURE_VALUES_DECLARE(testgroup, testname, testfixture, testvalues)
+#define TEST_F_VALUES_2(testname, testfixture, testvalues) TEST_FIXTURE_VALUES_DECLARE(,testname, testfixture, testvalues)
 #define GET_TEST_F_VALUES_MACRO(_1,_2,_3,_4, TFVNAME,...) TFVNAME
 #define TEST_F_VALUES(...) GET_TEST_F_VALUES_MACRO(__VA_ARGS__, TEST_F_VALUES_1, TEST_F_VALUES_2)(__VA_ARGS__)
+
+// Parameterised tests...
+
+
+// (Section) Inline tests...
 
 
 // Assertions...
@@ -671,4 +670,4 @@ void test_runner_main()
 // EXPECT_THROW
 // ASSERT_THAT
 
-#endif // JAHOUTF_HPP
+#endif  // namespace JAHOUTF_HPP

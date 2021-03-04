@@ -1,125 +1,109 @@
 #include "jahoutf.hpp"
 
 // Declare test program main, and run all the tests.
-JAHOUTF_MAIN { RUNALL }
+JAHOUTF_TEST_RUNNER { RUNALL }
 
 // A test that adds x and y together...
-TEST(add)
+TEST(oneIsOdd)
 {
-    int x = 1, y = 2;
-    EXPECT_EQ(x + y, 3)
+    int x = 1;
+    EXPECT_EQ(x % 2, 1)
 }
 
-// Test that subtracts y from x...
-TEST(subtract)
+TEST(twoIsEven)
 {
-    int x = 1, y = 2;
-    EXPECT_EQ(x - y, -1)
-}
-
-// Same test as add, however grouped in a category called arithmetic
-TEST(arithmetic, add)
-{
-    int x = 1, y = 2;
-    EXPECT_EQ(x + y, 3)
-}
-
-TEST(arithmetic, subtract)
-{
-    int x = 1, y = 2;
-    EXPECT_EQ(x + y, 3)
+    int x = 2;
+    EXPECT_EQ(x % 2, 0)
 }
 
 
-TEST_VALUES(test_values, testname, jahoutf::values<int>({ 1, 2, 3, 4, 5 }))
+TEST(isOdd, one)
 {
-    EXPECT_EQ(GetParam(), 5)
+    int x = 1;
+    EXPECT_EQ(x % 2, 1)
 }
 
-TEST_VALUES(testname2, jahoutf::values<int>({ 5, 6, 7, 8, 9 }))
+TEST(isEven, two)
 {
-     EXPECT_EQ(GetParam(), 5)
+    int x = 2;
+    EXPECT_EQ(x % 2, 0)
 }
 
 
+// // Fixtures...
 class myFixture : public jahoutf::fixture
 {
     public:
-    int x_ = 2, y_ = 1;
+    bool IsOdd(int v) { return v % 2 == 1; }
+    bool IsEven(int v) { return v % 2 == 0; }
 };
 
-TEST_F(myFixture, fixtureGroup, add)
+TEST_F(isOdd, fixtureOne, myFixture)
 {
-    EXPECT_EQ(x_ + y_, 3);
+    int x = 1;
+    EXPECT(IsOdd(x))
 }
 
-TEST_F(myFixture, fixtureGroup, subtract)
+TEST_F(isEven, fixtureTwo, myFixture)
 {
-    EXPECT_EQ(x_ - y_, 1);
+    int x = 2;
+    EXPECT(IsEven(x))
 }
 
-TEST_F(myFixture, fixture3)
+auto oddNumbers = jahoutf::values<int>({1, 3, 5, 7, 9});
+auto evenNumbers = jahoutf::values<int>({2, 4, 6, 8, 10});
+
+TEST_VALUES(isOdd, values, oddNumbers)
 {
-    EXPECT_EQ(y_ - x_, -1);
+    int x = jahoutf_value();
+    EXPECT_EQ(x % 2, 1)
 }
 
-TEST_F_VALUES(testgroup, testname, myFixture, jahoutf::values<int>({ 1, 2, 3, 4, 5 }))
+TEST_VALUES(isEven, values, evenNumbers)
 {
-    EXPECT_EQ(x_ + GetParam(), 4)
+    int x = jahoutf_value();
+    EXPECT_EQ(x % 2, 0)
 }
 
-TEST_F_VALUES(testname42, myFixture, jahoutf::values<int>({ 2, 2, 0, 2, 2 }))
+TEST_F_VALUES(isOdd, fixtureValues, myFixture, oddNumbers)
 {
-    EXPECT_EQ(x_ + GetParam(), 4)
+    int x = jahoutf_value();
+    EXPECT(IsOdd(x))
+}
+
+TEST_F_VALUES(isEven, fixtureValues, myFixture, evenNumbers)
+{
+    int x = jahoutf_value();
+    EXPECT(IsEven(x))
 }
 
 
+class myFixtureWithParams : public jahoutf::fixture_param<int>
+{
+    public:
+    bool IsOdd(int v) { return v % 2 == 1; }
+    bool IsEven(int v) { return v % 2 == 0; }
+};
 
+TEST_F_VALUES(isEven, test_f_values_paramFixtureNoParamUse, myFixtureWithParams, evenNumbers)
+{
+    EXPECT(IsEven(jahoutf_value()))
+}
 
-// Fixture, with parameters
-class myFixtureWithParam : public jahoutf::param<int>
+class myFixtureWithParamsAndSetup : public myFixtureWithParams
 {
     public:
     void Setup()
     {
-        x_ = GetParam();
-        y_ = 2;
+        x_ = jahoutf_param();
     }
-
-    protected:
-        int x_, y_;
+    int x_;
 };
 
-// A param test on a fixture with 
-TEST_P(myFixtureWithParam, passtest)
+TEST_F_VALUES(isEven, test_f_values_paramFixtureAndSetup, myFixtureWithParamsAndSetup, evenNumbers)
 {
-    SUCCESS
+    EXPECT(IsEven(x_))
 }
-
-TEST_P(myFixtureWithParam, failtest)
-{
-    FAIL
-}
-
-INSTANTIATE_TEST_P(paramtests, test1, passtest, jahoutf::values<int>({ 21, 22, 23, 24 }))
-INSTANTIATE_TEST_P(paramtests, test2, failtest, jahoutf::values<int>({ 11, 12, 13, 14 }))
-INSTANTIATE_TEST_P(paramtests, test3, passtest, jahoutf::values<int>({ 11, 12, 13, 14 }))
-
-
-// Parameterized tests.... test body support TEST_A  (array)
-
-// Parameterized tests.... immutable fixture, test body support param    INSTANTIATE_TEST
-
-// Parameterized tests.... mutable fixture, test body and fixture support param     INSTANTIATE_TEST_F
-
-// Parameterized tests.... mutable fixture, param test, test body and fixture support param    TEST_P
-
-// TEST(group, name)             a test case
-// TEST_VALUES(group, name, values)           test case for difference values (same test body for multiple items)
-// TEST_F(group, name, fixture)           a test fixture (same fixture applied to many different test bodies)
-// TEST_F_VALUES(group, name, fixture, values)  test values for same fixture...
-// TEST_P(name, fixture)           a param test (on fixture)
-// TEST_P_VALUES(group, name, ptest, values)          instantiated test for parameterised values and fixture and test
 
 
 
