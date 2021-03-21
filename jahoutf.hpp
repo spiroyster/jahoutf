@@ -45,29 +45,67 @@ namespace jahoutf
             std::list<std::string> success, failure;
             unsigned int duration_ms;
         };
-        
+    
+        class result_summary
+        {
+        public:
+            unsigned int successful_assertions = 0, failed_assertions = 0, test_passes = 0, test_failures = 0, duration_ms = 0, exceptions_thrown = 0;
+        };
+
         class instance
         {
         public:
-            typedef std::map<std::string, std::list<test*>> test_list;
-            typedef std::list<test_result> result_list;
-
-            test_list test_runner_;
+            std::map<std::string, std::list<test*>> tests_;
+            std::list<test_result> results_;        
             std::list<std::string> test_runner_patterns_;
-            result_list results_;        
             std::shared_ptr<event_interface> event_;
             std::list<std::shared_ptr<report_interface>> reports_;
 
             bool shuffle_ = false;
             bool list_ = false;
             std::string suite_name_;
+
+            std::map<std::string, result_summary> summary_groups_;
+            result_summary summary_;
+
+            void summerize()
+            {
+                for (auto r = results_.begin(); r != results_.end(); ++r)
+                {
+                    result_summary& g = summary_groups_[r->group];
+                    g.duration_ms = r->duration_ms;
+                    g.successful_assertions += r->success.size();
+                    g.failed_assertions += r->failure.size();
+                    if (r->failure.empty())
+                        ++g.test_passes;
+                    else
+                        ++g.test_failures;
+                }
+                for (auto g = summary_groups_.begin(); g != summary_groups_.end(); ++g)
+                {
+                    summary_.duration_ms += g->second.duration_ms;
+                    summary_.successful_assertions += g->second.successful_assertions;
+                    summary_.failed_assertions += g->second.failed_assertions;
+                    summary_.test_passes += g->second.test_passes;
+                    summary_.test_failures += g->second.test_failures;
+                }
+                results_.sort([](const test_result& a, const test_result& b)
+                {
+                    if (a.group == b.group)
+                        return a.name < b.name;
+                    return a.name < b.name;
+                });
+            }
+
+            unsigned int disabled_total();
         };
     }
 
     class report_interface
     {
     public:
-        virtual void report(const _::instance& session) {}
+        virtual void report() {}
+        virtual std::string name() = 0;
     };
 
     class event_interface
@@ -75,12 +113,12 @@ namespace jahoutf
     public:
         virtual void message(const std::string& msg) {}
         virtual void case_start(const test& test) {}
-        virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
-        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& success) {}
-        virtual void case_exception(const test& test, const std::string& exc) {}
+        virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) {}
+        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) {}
+        virtual void case_exception(const test& test, const std::string& msg) {}
         virtual void case_end(const test& test) {}
-        virtual void suite_start(const _::instance& session) {}
-        virtual void suite_end(const _::instance& session) {}
+        virtual void suite_start() {}
+        virtual void suite_end() {}
     };
 
     extern _::instance& session();
@@ -136,10 +174,7 @@ namespace jahoutf
         test* jahoutf_current_test_;
         bool disabled_ = false;
 
-        void test_runner_install()
-        {
-            session().test_runner_[group_].push_back(this);
-        }
+        void test_runner_install() { session().tests_[group_].push_back(this); }
         void test_result_install()
         {
             if (!result_)
@@ -148,7 +183,6 @@ namespace jahoutf
                 result_ = &session().results_.back();
             }
         }
-        
 
         _::test_result* result_;
     private:
@@ -193,18 +227,8 @@ namespace jahoutf
     class section : public test
     {
     public:
-        section(const std::string& group, const std::string& name)
-        :   test(group, name)
-        {
-            // test start
-            session().event_->case_start(*this);
-        }
-
-        ~section()
-        {
-            // handler for reporting exceptions...
-            session().event_->case_end(*this);
-        }
+        section(const std::string& group, const std::string& name) : test(group, name) { session().event_->case_start(*this); }
+        ~section() { session().event_->case_end(*this); }
         void jahoutf_test_body() {}
     };
 
@@ -212,7 +236,7 @@ namespace jahoutf
 }   // namespace jahoutf
 
 // A test case with just name...
-#define JAHOUTF_TESTCLASSNAME(x) x
+#define JAHOUTF_TESTCLASSNAME(x) x ## instance
 
 // Test case...
 #define JAHOUTF_TEST_CASE_DEFINE(testgroup, testname) namespace testgroup \
@@ -392,50 +416,36 @@ namespace jahoutf
             else
                 std::cout << Red(" FAILED ") << std::to_string(test.jahoutf_test_result().failure.size()) << "/" << std::to_string(test.jahoutf_test_result().total()) << " assertions failed.\n";
         }
-        virtual void suite_start(const _::instance& session) 
+        virtual void suite_start() 
         {
             unsigned int test_count = 0, group_count = 0, disabled_count = 0;
-            for (auto g = session.test_runner_.begin(); g != session.test_runner_.end(); ++g, ++group_count)
+            for (auto g = session().tests_.begin(); g != session().tests_.end(); ++g, ++group_count)
+            {
                 test_count += g->second.size();
-                
-            std::cout << Inverse("Running " + std::to_string(test_count) + " tests (" + std::to_string(group_count) + " groups)") << " (type \"?\" for help)\n";
-            if (session.shuffle_)
-                std::cout << Cyan("[SHUFFLE] ");
+                for (auto t = g->second.begin(); t != g->second.end(); ++t)
+                    disabled_count += (*t)->jahoutf_test_disabled() ? 1 : 0;
+            }
+            std::cout << Inverse("Running " + std::to_string(test_count - disabled_count) + " tests (" + std::to_string(group_count) + " groups)") << " (type \"?\" for help)\n";
+            if (session().shuffle_)
+                std::cout << Cyan(" [SHUFFLE] ");
+            if (disabled_count)
+                std::cout << Yellow(" [" + std::to_string(disabled_count) + " tests are disabled]");
         }
-        virtual void suite_end(const _::instance& session) 
+        virtual void suite_end() 
         {
             std::cout << "\n" << Inverse("Results");
-            struct group_result { unsigned int successful_assertions = 0, failed_assertions = 0, test_passes = 0, test_failures = 0, group_duration_ms = 0; };
-            std::map<std::string, group_result> group_results;
-            for (auto r = session.results_.begin(); r != session.results_.end(); ++r)
-            {
-                group_result& g = group_results[r->group];
-                g.group_duration_ms = r->duration_ms;
-                g.successful_assertions += r->success.size();
-                g.failed_assertions += r->failure.size();
-                if (r->failure.empty())
-                    ++g.test_passes;
-                else
-                    ++g.test_failures;
-            }
-            group_result total;
-            for (auto g = group_results.begin(); g != group_results.end(); ++g)
+            for (auto g = session().summary_groups_.begin(); g != session().summary_groups_.end(); ++g)
             {
                 std::cout << "\n" << results_bar(g->second.test_passes, g->second.test_failures) << " {" << Cyan(g->first) << "} ";
                 std::cout << std::to_string(g->second.test_passes) << "/" << std::to_string(g->second.test_passes + g->second.test_failures) << " tests passed ";
                 std::cout << "(" << std::to_string(g->second.successful_assertions) << "/" << std::to_string(g->second.successful_assertions + g->second.failed_assertions) << " assertions).";
-                std::cout << duration(g->second.group_duration_ms);
-                total.group_duration_ms += g->second.group_duration_ms;
-                total.successful_assertions += g->second.successful_assertions;
-                total.failed_assertions += g->second.failed_assertions;
-                total.test_passes += g->second.test_passes;
-                total.test_failures += g->second.test_failures;
+                std::cout << duration(g->second.duration_ms);    
             }
             std::cout << "\n" << Inverse("Total");
-            std::cout << "\n" << results_bar(total.test_passes, total.test_failures);
-            std::cout << std::to_string(total.test_passes) << "/" << std::to_string(total.test_passes + total.test_failures) << " tests passed ";
-            std::cout << "(" << std::to_string(total.successful_assertions) << "/" << std::to_string(total.successful_assertions + total.failed_assertions) << " assertions).";
-            std::cout << duration(total.group_duration_ms) << "\n";
+            std::cout << "\n" << results_bar(session().summary_.test_passes, session().summary_.test_failures);
+            std::cout << std::to_string(session().summary_.test_passes) << "/" << std::to_string(session().summary_.test_passes + session().summary_.test_failures) << " tests passed ";
+            std::cout << "(" << std::to_string(session().summary_.successful_assertions) << "/" << std::to_string(session().summary_.successful_assertions + session().summary_.failed_assertions) << " assertions).";
+            std::cout << duration(session().summary_.duration_ms) << "\n";
         }
     };
 
@@ -444,31 +454,81 @@ namespace jahoutf
     public:
         std::string filepath_;
         xUnit(const std::string& filename) : filepath_(filename) {}
+        std::string name() { return std::string("xUnit xml (" + filepath_ + ")"); }
 
-        void report(const _::instance& session)
+        void replace_all(std::string& str, const std::string& what, const std::string& with)
+		{
+			std::size_t itr = str.find(what);
+			while (itr != std::string::npos)
+			{
+				str.replace(itr, itr + what.size(), with.c_str());
+				itr = str.find(what);
+			}
+		}
+		std::string escape_xml_chars(const std::string& syntaxToConvert)
+		{
+			std::string convertedSyntax = syntaxToConvert;
+			replace_all(convertedSyntax, ">", "&gt;");
+			replace_all(convertedSyntax, "<", "&lt;");
+			replace_all(convertedSyntax, "&", "&amp;");
+			replace_all(convertedSyntax, "'", "&apos;");
+			replace_all(convertedSyntax, "\"", "&quot;");
+			return convertedSyntax;
+		}
+
+        std::string output_testsuite(const std::string& name, const jahoutf::_::result_summary& results, unsigned int disabled_count)
         {
             std::ostringstream oss;
-            oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            //oss << "<testsuite name=\"" << jahoutf::session().suite_name_ << "\" tests=\"" << session(). << "\" failures=\"" << 0 " disabled="0" errors="0" time="0.004">"
+            oss << "<testsuite name=\"" << name << "\" tests=\"" << (results.test_passes + results.test_failures) << "\" failures=\"" << results.test_failures << "\" disabled=\"" << disabled_count << "\" errors=\"" << results.exceptions_thrown << "\" time=\"" << results.duration_ms << "\">";
+            return oss.str();
+        }
 
-            // <testsuite name="EWDesignDay2020BehaviourTest" tests="2" failures="0" disabled="0" errors="0" time="0.004">
-            //   <testcase name="GetSizingPeriodOptions" status="run" time="0" classname="EWDesignDay2020BehaviourTest" />
-            //   <testcase name = "GetSummertimeTemperatureWithMechVentContinuousTreated19Degrees" status = "run" time = "0.001" classname = "CibseSimpleHeatGainBehaviour2015Test">
-            //	   <failure message = "c:\users\cordell\documents\soc2\soc\source\unittests\testenergymodel\heatgain.test.cpp:340&#x0A;The difference between TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) and 47.84 is 0.52000000000000313, which exceeds 0.1, where&#x0A;TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) evaluates to 47.32,&#x0A;47.84 evaluates to 47.840000000000003, and&#x0A;0.1 evaluates to 0.10000000000000001." type = ""><![CDATA[c:\users\cordell\documents\soc2\soc\source\unittests\testenergymodel\heatgain.test.cpp:340
-            //	The difference between TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) and 47.84 is 0.52000000000000313, which exceeds 0.1, where
-            //	TestHelpers::RoundToTwoDecimalPlaces(summertimeTemperature) evaluates to 47.32,
-            //	47.84 evaluates to 47.840000000000003, and
-            //	0.1 evaluates to 0.10000000000000001.]]></failure>
-            //	</testcase>
+        void report()
+        {
+            unsigned int test_count = 0, disabled_count = 0;
+            for (auto g = session().tests_.begin(); g != session().tests_.end(); ++g)
+            {
+                test_count += g->second.size();
+                for (auto t = g->second.begin(); t != g->second.end(); ++t)
+                    disabled_count += (*t)->jahoutf_test_disabled() ? 1 : 0;
+            }
+            std::ostringstream oss;
+            oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+            output_testsuite(session().suite_name_, session().summary_, disabled_count);
+            if (!session().results_.empty())
+            {
+                std::string group = session().results_.begin()->group;
+                oss << "  " << output_testsuite(session().suite_name_, session().summary_groups_[group], 0) << "\n";
+                for (auto r = session().results_.begin(); r != session().results_.end(); ++r)
+                {
+                    if (r->group != group)
+                    {
+                        oss << "  </testsuite>\n"; 
+                        group = r->group;
+                        oss << "  " << output_testsuite(session().suite_name_, session().summary_groups_[group], 0) << "\n";
+                    }
+                    oss << "    <testcase name=\"" << r->name << "\" status=\"run\" time=\"" << r->duration_ms << "\" classname=\"" << group << "\">";
+                    for (auto f = r->failure.begin(); f != r->failure.end(); ++f)
+                        oss <<  "\n      <failure message=\"" << escape_xml_chars(*f) << "\"></failure>";
+                    oss << "\n    </testcase>\n";
+                }
+                if (!session().results_.empty())
+                    oss << "  </testsuite>\n";
+                oss << "</testsuite>\n"; 
+            }
+            std::ofstream file(filepath_);
+            if (file)
+                file << oss.str();
+            else
+                throw std::runtime_error("Unable to open file " + filepath_);
         }
     };
 
 
-    // test runner
+    // test runner functions...
     namespace _
     {
-
-        static bool test_name_pattern_match(const jahoutf::test& t)
+        static bool test_runner_pattern_match(const jahoutf::test& t)
         {
             std::string test_group_and_name(t.jahoutf_test_group() + "." + t.jahoutf_test_name());
             for (auto patternItr = session().test_runner_patterns_.begin(); patternItr != session().test_runner_patterns_.end(); ++patternItr)
@@ -479,41 +539,43 @@ namespace jahoutf
             return false;
         }
 
-        static void list_tests(instance::test_list& tests)
+        static void test_runner_list_tests()
         {
-            for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
+            for (auto groupItr = session().tests_.begin(); groupItr != session().tests_.end(); ++groupItr)
                 for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
                     session().event_->message(groupItr->first + "." + (*testItr)->jahoutf_test_name() + "\n");
         }
 
-        static void disable_all_tests(instance::test_list& tests)
+        static void test_runner_disable_all_tests()
         {
-            for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
+            for (auto groupItr = session().tests_.begin(); groupItr != session().tests_.end(); ++groupItr)
                 for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
                     (*testItr)->jahoutf_test_disabled(true);
         }
 
-        static void run_tests(instance::test_list& tests)
+        static void test_runner_run_tests()
         {  
+            // If specified, list the tests and leave...
             if (session().list_)
             {
-                list_tests(tests);
+                test_runner_list_tests();
                 return;
             }
 
             // Process any pattern matching we need to do...
             if (!session().test_runner_patterns_.empty())
             {
-                disable_all_tests(tests);
-                for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
+                test_runner_disable_all_tests();
+                for (auto groupItr = session().tests_.begin(); groupItr != session().tests_.end(); ++groupItr)
                     for (auto testItr = groupItr->second.begin(); testItr != groupItr->second.end(); ++testItr)
-                        if (test_name_pattern_match(**testItr))
+                        if (test_runner_pattern_match(**testItr))
                             (*testItr)->jahoutf_test_disabled(false);
             }
 
-            session().event_->suite_start(session());
+            // Start the session...
+            session().event_->suite_start();
             unsigned int tests_count = 0, tests_passed = 0, tests_failed = 0;
-            for (auto groupItr = tests.begin(); groupItr != tests.end(); ++groupItr)
+            for (auto groupItr = session().tests_.begin(); groupItr != session().tests_.end(); ++groupItr)
             {
                 //if (session().shuffle_)
                  //   std::random_shuffle(groupItr->second.begin(), groupItr->second.end());
@@ -522,16 +584,16 @@ namespace jahoutf
                     if (!(*testItr)->jahoutf_test_disabled())
                         (*testItr)->jahoutf_test_invoke();
                 }    
-            }
-                
-            session().event_->suite_end(session());
+            } 
+            session().summerize(); 
+            session().event_->suite_end();
         }
 
-        static std::string help_message()
+        static std::string test_runner_help_message()
         {
             std::ostringstream oss;
             oss << "jahoutf test runner.\n";
-            oss << "Usage: > namefExe [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n";
+            oss << "Usage: > " << session().suite_name_ << " [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n";
             oss << "\n";
             oss << "-list    : list the tests in this test program.\n";
             oss << "-shuffle : shuffle the tests before running them.\n";
@@ -540,46 +602,47 @@ namespace jahoutf
             oss << "\n";
             oss << "If one or more tests are specfied to run, all tests except those matching the name patterns will be disabled.\n";
             oss << "To run a single test, use {groupname}.{testname} format (i.e group and name seperated by dot).\n";
-            oss << "Wildcards supported e.g.\n";
-            oss << "All tests in group:  groupname.*\n";
-            oss << "All groups with a specific test name: *.testname\n";
             return oss.str();
         }
 
-        static void process_arguments(const std::vector<std::string>& args)
+        static void test_runner_process_arguments(const std::vector<std::string>& args)
         {
+            session().suite_name_ = args.front();
             for (unsigned int arg = 1; arg < args.size(); ++arg)
             {
                 if (args[arg] == "-silent")
                     jahoutf::session().event_.reset(new event_interface());
                 else if (args[arg] == "-shuffle")
                     jahoutf::session().shuffle_ = true;
-                else if (args[arg] == "-xunit=")
-                    jahoutf::session().reports_.push_back(std::make_shared<jahoutf::xUnit>(args[arg].substr(7)));
                 else if (args[arg] == "-list")
                     jahoutf::session().list_ = true;
                 else if (args[arg] == "?")
                 {
-                    jahoutf::session().event_->message(help_message());
-                    jahoutf::session().test_runner_.clear();
+                    jahoutf::session().event_->message(test_runner_help_message());
+                    jahoutf::session().tests_.clear();
                 }
                 else
-                    jahoutf::session().test_runner_patterns_.push_back(args[arg]);    
+                {
+                    std::size_t xu = args[arg].find("-xunit=");
+                    if (xu == std::string::npos)
+                        jahoutf::session().test_runner_patterns_.push_back(args[arg]);    
+                    else
+                        jahoutf::session().reports_.push_back(std::make_shared<jahoutf::xUnit>(args[arg].substr(xu + 7)));
+                }
+                    
             }
         }
 
-        static void post_report(const instance& session)
+        static void test_runner_report()
         {
-            for (auto reportItr = session.reports_.begin(); reportItr != session.reports_.end(); ++reportItr)
+            for (auto reportItr = session().reports_.begin(); reportItr != session().reports_.end(); ++reportItr)
             {
                 try 
                 { 
-                    (*reportItr)->report(session); 
+                    (*reportItr)->report(); 
+                    session().event_->message("Reporting " + (*reportItr)->name() + "\n");
                 }
-                catch (...) 
-                {
-
-                }
+                catch (...) { session().event_->message("Reporter (" + (*reportItr)->name() + ") threw an exception.\n"); }
             }
         }
     }
@@ -617,15 +680,15 @@ int main(int argc, char** argv) \
 { \
     std::vector<std::string> args; \
     for (unsigned int c = 0; c < argc; ++c) { args.push_back(std::string(*(argv+c))); }\
-    jahoutf::_::process_arguments(args);\
-    if (!jahoutf::session().test_runner_.empty()) { test_runner_main(); } \
-    if (!jahoutf::session().results_.empty()) { jahoutf::_::post_report(jahoutf::session()); }\
+    jahoutf::_::test_runner_process_arguments(args);\
+    if (!jahoutf::session().tests_.empty()) { test_runner_main(); } \
+    if (!jahoutf::session().results_.empty()) { jahoutf::_::test_runner_report(); }\
     return 0; \
 } \
 void test_runner_main()
 
 // Run all the tests.... used if user has global startup and teardown functionality in main....
-#define RUNALL jahoutf::_::run_tests(jahoutf::session().test_runner_);
+#define RUNALL jahoutf::_::test_runner_run_tests();
 // Shuffle all the tests before running them (not applicable to section/inline tests)...
 #define SHUFFLE jahoutf::session().shuffle_ = true; RUNALL
 // Silence all the events

@@ -3,7 +3,6 @@
 // Declare test program main, and run all the tests.
 JAHOUTF_TEST_RUNNER { RUNALL }
 
-// A test that adds x and y together...
 TEST(oneIsOdd)
 {
     int x = 1;
@@ -15,7 +14,6 @@ TEST(twoIsEven)
     int x = 2;
     EXPECT_EQ(x % 2, 0)
 }
-
 
 TEST(isOdd, one)
 {

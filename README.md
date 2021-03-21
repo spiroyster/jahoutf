@@ -3,18 +3,16 @@ Just another header only unit testing framework. xUnit style single header only 
 
 * Lightweight
 * Header only
-* C++11 and STL only
+* STL only
 * xUnit output
 * Test runner
-* Supports fixtures, paramterised and inline/section tests.
+* Fixtures supported
+* Parameterised values suported.
 * Customisable output and reporting.
 * Test Shuffling
 
-## Usage
-
-It is a single header only lib requiring C++14 or later, so simply include jahoutf.hpp
-
-Quick example:
+## Example
+Write a test program with a single test...
 
     // Only need to include jahoutf.hpp
     #include "jahoutf.hpp"
@@ -27,7 +25,7 @@ Quick example:
 
 Compile it...
 
-    > g++ helloTestWorld.cpp -o helloTestWorld.cpp
+    > g++ helloTestWorld.cpp -o helloTestWorld
 
 Run it....
 
@@ -37,30 +35,53 @@ Run it again, this time report xUnit xml...
 
     > ./helloTestWorld -xml=results.xml
 
+Resultant xUnit xml...
+
+
+
 
 
 # Creating Tests
 
-Tests can either be written in a test program (and thus run by the test runner), or they can be written into sections within existing code to run tests in-situ. The syntax for declaring a test and implmenting test body is as follows:
+Tests can either be written in a test program (and thus run by the test runner), or they can be written into sections within existing code to run tests in-situ. The syntax for declaring a test and implmenting a test is as follows:
 
     TEST_x(group, name, ...)
     {
         // Test body
     }
 
-*TEST_x* is a macro that can be **TEST**, **TEST_F**, **TEST_P**, **SECTION** or their paramterised equivalents **TEST_VALUES**, **TEST_F_VALUES** or **TEST_P_VALUES**. SECTION tests follow the same syntax format as above (note no paramterised tests for *SECTION*). The test body should contain one or more assertions and can contain any other logic required.
+*TEST_x* is a macro that can be **TEST** for test cases, **TEST_F** for test fixtures or their paramterised equivalents **TEST_VALUES** or **TEST_F_VALUES** repsectively.
 
-The test runner identifies individual tests by a combination of group name and test name. Not assigning a group is valid, however every test must have a name. For this reason test uniqueness is defined solely by the group and name values supplied to the macro, and while test code/objects can scoped via namespaces, the test runner will ignore only uniquely identify via group and name. Valid names must follow C++ syntax rules for typedef naming.
+The test body should contain one or more expectations, and can contain any other logic required. All the expectations in a test must evaluate to true for the test to pass. Exceptions thrown within the test body will fail the test, although any expectations passed until that point will contribute to the pass totals.
+
+The test runner identifies individual tests by a combination of group name and test name. Not assigning a group is valid, however every test must have a name. For this reason test uniqueness is defined solely by the group and name values supplied to the macro, and while test code/objects can be scoped via namespaces, the test runner will ignore only uniquely identify via it's group and name. Valid names must follow C++ syntax rules for typedef naming.
+
+> The Test runner identified tests base on their group and name are uniquness cannot be gained by scoping tests.
 
 To create a test program, simply delcare a single test runner main function.
 
     JAHOUTF_TEST_RUNNER { RUNALL }
 
-The main block can contain any user code required but must declare either RUNALL (or SHUFFLE) in order to actually invoke tests. This is essentially the main entry for the program and only this is required (no other main function should be used or implemented).
+The main block can contain any user code required but must declare either *RUNALL* (or *SHUFFLE*) in order to actually invoke tests. This is essentially the main entry for the program and only this is required (no other main function should be used or implemented when using this macro). Tests will be automaticaly picked up and installed for use in the test runner.
+
+SECTION tests can be implented as follows:
+
+    SECTION(group, name)
+    {
+        // Test body
+    }
+
+Unlike test cases, section tests are contained within scoped body of existing code (i.e your program). They simply execute the code block and recorde the results which can be later reported. Since the test runner is not used, the group and name of the section are used only for collation and reporting of the results. This also means sections can reuse groups and names within the samme session.
+
+To use *SECTION* test, the jahoutf instance needs to be instantiated so that a session can recod
+
+    JAHOUT_INSTANCE
+
+
+
 
 # Test Case
-
-The most basic test is a test case. A test case can have 0 or more assertions, all of which must assert true for the test to pass.
+A test case can have 0 or more expectations, all of which must assert true for the test to pass.
 
     TEST(isOdd)
     {
@@ -68,10 +89,6 @@ The most basic test is a test case. A test case can have 0 or more assertions, a
         EXPECT_EQ(x % 2, 1)
     }
 
-The test cases can be grouped. This 
-
-This simply allows tests to be grouped and so totals their results. Tests can be put into namespaces and scoped that way, however for the test runner, a unique identifier (denoted by group and name) is used, ergo if
-two tests with the same name are in different namespaces, only a single test will be run (last decalred in the source).
 
     TEST(isOdd, one)
     {
@@ -85,7 +102,14 @@ two tests with the same name are in different namespaces, only a single test wil
         EXPECT_EQ(x % 2, 1)
     }
 
-There is no other way currently supported (although tags might be nice)
+* Can test global functions
+* Can test exceptions
+* Can test anything instantiated or called in the test body.
+* Can be nested in other namespaces 
+
+
+
+
 
 # Test Fixture
 
