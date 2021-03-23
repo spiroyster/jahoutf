@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2021 spiroyster
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #ifndef JAHOUTF_HPP
 #define JAHOUTF_HPP
 
@@ -451,12 +475,7 @@ namespace jahoutf
 
     class xUnit : public jahoutf::report_interface
     {
-    public:
-        std::string filepath_;
-        xUnit(const std::string& filename) : filepath_(filename) {}
-        std::string name() { return std::string("xUnit xml (" + filepath_ + ")"); }
-
-        void replace_all(std::string& str, const std::string& what, const std::string& with)
+        static void replace_all(std::string& str, const std::string& what, const std::string& with)
 		{
 			std::size_t itr = str.find(what);
 			while (itr != std::string::npos)
@@ -465,7 +484,7 @@ namespace jahoutf
 				itr = str.find(what);
 			}
 		}
-		std::string escape_xml_chars(const std::string& syntaxToConvert)
+		static std::string escape_xml_chars(const std::string& syntaxToConvert)
 		{
 			std::string convertedSyntax = syntaxToConvert;
 			replace_all(convertedSyntax, ">", "&gt;");
@@ -476,12 +495,49 @@ namespace jahoutf
 			return convertedSyntax;
 		}
 
-        std::string output_testsuite(const std::string& name, const jahoutf::_::result_summary& results, unsigned int disabled_count)
+        class testsuite_raii
         {
-            std::ostringstream oss;
-            oss << "<testsuite name=\"" << name << "\" tests=\"" << (results.test_passes + results.test_failures) << "\" failures=\"" << results.test_failures << "\" disabled=\"" << disabled_count << "\" errors=\"" << results.exceptions_thrown << "\" time=\"" << results.duration_ms << "\">";
-            return oss.str();
-        }
+            std::ostringstream& oss_;
+            std::string close_syntax_;
+        public:
+            testsuite_raii(std::ostringstream& oss, const std::string& name, const jahoutf::_::result_summary& results, unsigned int disabled_count, const std::string& indent)
+            :   oss_(oss)
+            {
+                oss_ << "\n" << indent << "<testsuite name=\"" << name << "\" tests=\"" << (results.test_passes + results.test_failures) << "\" failures=\"" << results.test_failures << "\" disabled=\"" << disabled_count << "\" errors=\"" << results.exceptions_thrown << "\" time=\"" << results.duration_ms << "\">";
+                close_syntax_ = std::string("\n" + indent + "</testsuite>\n");
+            }
+            ~testsuite_raii()
+            {
+                oss_ << close_syntax_;
+            }
+        };
+
+        class testcase_raii
+        {
+            std::ostringstream& oss_;
+            std::string close_syntax_;
+        public:
+            testcase_raii(std::ostringstream& oss, const jahoutf::_::test_result& result, const std::string& indent)
+            :   oss_(oss)
+            {
+                oss_ << "\n" << indent << "<testcase name=\"" << result.name << "\" status=\"run\" time=\"" << result.duration_ms << "\" classname=\"" << result.group << "\">";
+                for (auto f = result.failure.begin(); f != result.failure.end(); ++f)
+                    oss_ <<  "\n" << indent << "  " << "<failure message=\"" << xUnit::escape_xml_chars(*f) << "\"></failure>";
+                oss_ << "\n" << indent << "</testcase>\n";
+            }
+            ~testcase_raii()
+            {
+                oss_ << close_syntax_;
+            }
+        };
+
+
+
+
+    public:
+        std::string filepath_;
+        xUnit(const std::string& filename) : filepath_(filename) {}
+        std::string name() { return std::string("xUnit xml (" + filepath_ + ")"); }
 
         void report()
         {
@@ -494,27 +550,20 @@ namespace jahoutf
             }
             std::ostringstream oss;
             oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            output_testsuite(session().suite_name_, session().summary_, disabled_count);
+            testsuite_raii ts(oss, session().suite_name_, session().summary_, disabled_count, "");
             if (!session().results_.empty())
             {
                 std::string group = session().results_.begin()->group;
-                oss << "  " << output_testsuite(session().suite_name_, session().summary_groups_[group], 0) << "\n";
+                auto g = std::make_shared<testsuite_raii>(oss, group, session().summary_groups_[group], 0, "  ");
                 for (auto r = session().results_.begin(); r != session().results_.end(); ++r)
                 {
                     if (r->group != group)
                     {
-                        oss << "  </testsuite>\n"; 
                         group = r->group;
-                        oss << "  " << output_testsuite(session().suite_name_, session().summary_groups_[group], 0) << "\n";
+                        g = std::make_shared<testsuite_raii>(oss, group, session().summary_groups_[group], 0, "  ");
                     }
-                    oss << "    <testcase name=\"" << r->name << "\" status=\"run\" time=\"" << r->duration_ms << "\" classname=\"" << group << "\">";
-                    for (auto f = r->failure.begin(); f != r->failure.end(); ++f)
-                        oss <<  "\n      <failure message=\"" << escape_xml_chars(*f) << "\"></failure>";
-                    oss << "\n    </testcase>\n";
+                    testcase_raii t(oss, *r, "    ");
                 }
-                if (!session().results_.empty())
-                    oss << "  </testsuite>\n";
-                oss << "</testsuite>\n"; 
             }
             std::ofstream file(filepath_);
             if (file)
@@ -530,10 +579,17 @@ namespace jahoutf
     {
         static bool test_runner_pattern_match(const jahoutf::test& t)
         {
-            std::string test_group_and_name(t.jahoutf_test_group() + "." + t.jahoutf_test_name());
             for (auto patternItr = session().test_runner_patterns_.begin(); patternItr != session().test_runner_patterns_.end(); ++patternItr)
             {
-                if (*patternItr == test_group_and_name)
+                std::size_t seperator = patternItr->find(".");
+                std::string group = patternItr->substr(0, seperator);
+                std::string name = seperator == std::string::npos ? "" : patternItr->substr(seperator+1);
+                
+                if (group == "*")
+                    return name == t.jahoutf_test_name();
+                if (name == "*")
+                    return group == t.jahoutf_test_group();
+                if (name == t.jahoutf_test_name() && group == t.jahoutf_test_group())
                     return true;
             }
             return false;
@@ -694,8 +750,8 @@ void test_runner_main()
 // Silence all the events
 #define SILENT jahoutf::session().event_.reset(new jahoutf::_::instance::event_interface());
 // Maybe post? Post current results to report...
-#define REPORT(x) x;
-#define EVENT(x) x
+//#define JAHOUTF_REPORT(x) std::shared_ptr<x>    jahoutf::session().reports_.push_back(std::shared_ptr<new )
+//#define JAHOUTF_EVENT(x) x
 
 
 #define TEST_CASE_1(testgroup, testname) JAHOUTF_TEST_CASE_DEFINE(testgroup, testname)
@@ -730,7 +786,6 @@ void test_runner_main()
 #define EXPECT_EQ(a, b) if (a == b) { SUCCESS } else { FAIL };
 #define EXPECT(a) EXPECT_EQ(a, true);
 #define EXPECT_NEAR(a, b, e) if (abs(b-a) <= e) { SUCCESS } else { FAIL };
-
 // EXPECT_THROW
 // ASSERT_THAT
 
