@@ -55,9 +55,29 @@ catch (...)\
 namespace jahoutf
 {
     class test;
-    class event_interface;
-    class report_interface;
+    //class event_interface;
+    //class report_interface;
     
+    class report_interface
+    {
+    public:
+        virtual void report() {}
+        virtual std::string name() = 0;
+    };
+
+    class event_interface
+    {
+    public:
+        virtual void message(const std::string& msg) {}
+        virtual void case_start(const test& test) {}
+        virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) {}
+        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& value, const std::string& expected, const std::string& tolerance, const std::string& msg) {}
+        virtual void case_exception(const test& test, const std::string& msg) {}
+        virtual void case_end(const test& test) {}
+        virtual void suite_start() {}
+        virtual void suite_end() {}
+    };
+
     namespace _
     {
         class test_result
@@ -121,29 +141,35 @@ namespace jahoutf
                 });
             }
 
+            void report()
+            {
+                for (auto reportItr = reports_.begin(); reportItr != reports_.end(); ++reportItr)
+                {
+                    try 
+                    { 
+                        (*reportItr)->report(); 
+                        event_->message("Reporting " + (*reportItr)->name() + "\n");
+                    }
+                    catch (...) 
+                    { 
+                        event_->message("Reporter (" + (*reportItr)->name() + ") threw an exception.\n"); 
+                    }
+                }
+                results_.clear();
+            }
+
+            ~instance()
+            {
+                if (event_)
+                    event_->suite_end();
+                report();
+            }
+
             unsigned int disabled_total();
         };
     }
 
-    class report_interface
-    {
-    public:
-        virtual void report() {}
-        virtual std::string name() = 0;
-    };
-
-    class event_interface
-    {
-    public:
-        virtual void message(const std::string& msg) {}
-        virtual void case_start(const test& test) {}
-        virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) {}
-        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) {}
-        virtual void case_exception(const test& test, const std::string& msg) {}
-        virtual void case_end(const test& test) {}
-        virtual void suite_start() {}
-        virtual void suite_end() {}
-    };
+    
 
     extern _::instance& session();
 
@@ -159,11 +185,11 @@ namespace jahoutf
         {
             test_result_install();
             session().event_->case_start(*this);
-            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+            begin_ = std::chrono::steady_clock::now();
             try { jahoutf_test_body(); }
             JAHOUTF_CATCH_EXCEPTION(TestBody)
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-            result_->duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(begin - end).count();
+            result_->duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(begin_ - end).count();
             session().event_->case_end(*this);
         }
 
@@ -173,10 +199,10 @@ namespace jahoutf
             session().event_->case_success(*this, file, lineNum, msg);
         }
 
-        virtual void jahoutf_assert_fail(const std::string& file, unsigned int lineNum, const std::string& msg)
+        virtual void jahoutf_assert_fail(const std::string& filename, unsigned int lineNum, const std::string& value, const std::string& expected, const std::string& tolerance, const std::string& msg)
         {
             result_->failure.push_back(msg);
-            session().event_->case_fail(*this, file, lineNum, msg);
+            session().event_->case_fail(*this, filename, lineNum, value, expected, tolerance, msg);
         }
 
         virtual void jahoutf_exception_thrown(const std::string& location, const std::string& e)
@@ -197,6 +223,7 @@ namespace jahoutf
     protected:
         test* jahoutf_current_test_;
         bool disabled_ = false;
+        std::chrono::steady_clock::time_point begin_;
 
         void test_runner_install() { session().tests_[group_].push_back(this); }
         void test_result_install()
@@ -251,8 +278,18 @@ namespace jahoutf
     class section : public test
     {
     public:
-        section(const std::string& group, const std::string& name) : test(group, name) { session().event_->case_start(*this); }
-        ~section() { session().event_->case_end(*this); }
+        section(const std::string& group, const std::string& name) : test(group, name) 
+        { 
+            test_result_install();
+            session().event_->case_start(*this);
+            begin_ = std::chrono::steady_clock::now();
+        }
+        ~section() 
+        { 
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+            result_->duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(begin_ - end).count();
+            session().event_->case_end(*this); 
+        }
         void jahoutf_test_body() {}
     };
 
@@ -430,7 +467,18 @@ namespace jahoutf
         }
         virtual void message(const std::string& msg) { std::cout << msg; }
         virtual void case_success(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) { if (!msg.empty()) { std::cout << header(test) << Cyan(filename + ":") << Yellow(std::to_string(lineNum)) << msg << "\n"; } }
-        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& msg) { std::cout << header(test) << Red("fail ") << Cyan(filename + ":") << Yellow(std::to_string(lineNum)); if (!msg.empty()) { std::cout << msg << "\n"; } }
+        virtual void case_fail(const test& test, const std::string& filename, unsigned int lineNum, const std::string& value, const std::string& expected, const std::string& tolerance, const std::string& msg) 
+        { 
+            std::cout << header(test) << Red("fail ") << Cyan(filename + ":") << Yellow(std::to_string(lineNum)); 
+            if (!value.empty())
+                std::cout << "\nValue     | " << White(value);
+            if (!expected.empty())
+                std::cout << "\nExpected  | " << White(expected);
+            if (!tolerance.empty())
+                std::cout << "\nTolerance | " << White(tolerance);
+            if (!msg.empty()) 
+                std::cout << msg << "\n";
+        }
         virtual void case_exception(const test& test, const std::string& exc)  { std::cout << header(test) << Magenta("EXCEPTION ") << "thrown in " << test.jahoutf_test_result().exception_location << "\n" << exc; }
         virtual void case_end(const test& test) 
         {
@@ -688,19 +736,6 @@ namespace jahoutf
                     
             }
         }
-
-        static void test_runner_report()
-        {
-            for (auto reportItr = session().reports_.begin(); reportItr != session().reports_.end(); ++reportItr)
-            {
-                try 
-                { 
-                    (*reportItr)->report(); 
-                    session().event_->message("Reporting " + (*reportItr)->name() + "\n");
-                }
-                catch (...) { session().event_->message("Reporter (" + (*reportItr)->name() + ") threw an exception.\n"); }
-            }
-        }
     }
 
     
@@ -728,6 +763,22 @@ namespace jahoutf
     } \
 }
 
+// namespace jahoutf
+// {
+//     namespace _
+//     {
+//         instance::~instance() 
+//         {
+//             if (event_)
+//                 event_->suite_end();
+//             report();
+//         }
+//     }
+// }
+
+// instance();
+//             ~instance();
+
 // Macro for defining main function, user can perform custom global setup and teardown (applied to entire test program) also processed -jahoutf arguments.
 // Must explicitly call RUNALL, RUNALL_RANDOMIZED or explicit tests?
 #define JAHOUTF_TEST_RUNNER JAHOUTF_INSTANCE \
@@ -738,7 +789,6 @@ int main(int argc, char** argv) \
     for (unsigned int c = 0; c < argc; ++c) { args.push_back(std::string(*(argv+c))); }\
     jahoutf::_::test_runner_process_arguments(args);\
     if (!jahoutf::session().tests_.empty()) { test_runner_main(); } \
-    if (!jahoutf::session().results_.empty()) { jahoutf::_::test_runner_report(); }\
     return 0; \
 } \
 void test_runner_main()
@@ -752,7 +802,7 @@ void test_runner_main()
 // Maybe post? Post current results to report...
 //#define JAHOUTF_REPORT(x) std::shared_ptr<x>    jahoutf::session().reports_.push_back(std::shared_ptr<new )
 //#define JAHOUTF_EVENT(x) x
-
+#define JAHOUTF_POST jahoutf::session().report();
 
 #define TEST_CASE_1(testgroup, testname) JAHOUTF_TEST_CASE_DEFINE(testgroup, testname)
 #define TEST_CASE_2(testname) JAHOUTF_TEST_CASE_DEFINE(, testname)
@@ -782,10 +832,10 @@ void test_runner_main()
 
 // Assertions...
 #define SUCCESS jahoutf_current_test_->jahoutf_assert_pass(__FILE__, __LINE__, "");
-#define FAIL jahoutf_current_test_->jahoutf_assert_fail(__FILE__, __LINE__, "");
-#define EXPECT_EQ(a, b) if (a == b) { SUCCESS } else { FAIL };
+#define FAIL jahoutf_current_test_->jahoutf_assert_fail(__FILE__, __LINE__, "", "", "", "");
+#define EXPECT_EQ(a, b) if (a == b) { SUCCESS } else { jahoutf_current_test_->jahoutf_assert_fail(__FILE__, __LINE__, #a, #b, "", ""); };
 #define EXPECT(a) EXPECT_EQ(a, true);
-#define EXPECT_NEAR(a, b, e) if (abs(b-a) <= e) { SUCCESS } else { FAIL };
+#define EXPECT_NEAR(a, b, e) if (abs(b-a) <= e) { SUCCESS } else { jahoutf_current_test_->jahoutf_assert_fail(__FILE__, __LINE__, #a, #b, #e, ""); };
 // EXPECT_THROW
 // ASSERT_THAT
 

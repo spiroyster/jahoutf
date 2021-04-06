@@ -58,30 +58,3 @@ TEST_F(exceptiontest, test_fixture_setup_exception, fixture_setup_exception) { F
 TEST_F(exceptiontest, test_fixture_teardown_exception, fixture_teardown_exception) { SUCCESS }
 
 
-
-
-
-// class myFixtureParam : public jahoutf::fixture_param<int>
-// {
-
-// };
-
-// class myFixtureParamSetup : public jahoutf::fixture_param<int>
-// {
-// public:
-//     void Setup() 
-//     {
-//          x_ = jahoutf_param();
-//     }
-//     int x_;
-// };
-
-// TEST_F(fixtureTest, TEST_F_myFixtureTest, myFixture) { SUCCESS }
-//TEST_F(fixtureTest, TEST_F_myFixtureParamTest, myFixtureParam) { SUCCESS }
-
-//auto vals = jahoutf::values<int>({ 1, 2, 3, 4, 5 });
-
-//TEST_F_VALUES(fixtureTest, TEST_F_VALUES_myFixture, myFixture) { SUCCESS }
-//TEST_F_VALUES(fixtureTest, TEST_F_VALUES_myFixtureParam, myFixtureParam) { SUCCESS }
-
-//TEST_V(shouldpass, )

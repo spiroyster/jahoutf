@@ -17,6 +17,7 @@ int main(int argc, char** argv)
     }
 
     // Manually post results, alternatively jahoutf instance will report results on program destruction.
+    //JAHOUTF_POST
 
     return 0;
 }
