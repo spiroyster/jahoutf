@@ -139,7 +139,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 { \
     namespace _ \
     { \
-        extern std::shared_ptr<instance> session_; \
+        static std::shared_ptr<instance> session_; \
     } \
     _::instance& session() \
     { \
@@ -448,15 +448,15 @@ namespace logiqa
 	public:
 
 #ifdef LOGIQA_ANSI
-		std::string Black(const std::string& msg) { return std::string("\033[1;30m" + msg + "\033[0m"); }
-		std::string Red(const std::string& msg) { return std::string("\033[1;31m" + msg + "\033[0m"); }
-		std::string Green(const std::string& msg) { return std::string("\033[1;32m" + msg + "\033[0m"); }
-		std::string Yellow(const std::string& msg) { return std::string("\033[1;33m" + msg + "\033[0m"); }
-		std::string Blue(const std::string& msg) { return std::string("\033[1;34m" + msg + "\033[0m"); }
-		std::string Magenta(const std::string& msg) { return std::string("\033[1;35m" + msg + "\033[0m"); }
-		std::string Cyan(const std::string& msg) { return std::string("\033[1;36m" + msg + "\033[0m"); }
-		std::string White(const std::string& msg) { return std::string("\033[0;37m" + msg + "\033[0m"); }
-		std::string Inverse(const std::string& msg) { return std::string("\033[1;7m" + msg + "\033[0m"); }
+		void black(const std::string& msg) { std::cout << std::string("\033[1;30m" + msg + "\033[0m"); }
+		void red(const std::string& msg) { std::cout << std::string("\033[1;31m" + msg + "\033[0m"); }
+		void green(const std::string& msg) { std::cout << std::string("\033[1;32m" + msg + "\033[0m"); }
+		void yellow(const std::string& msg) { std::cout << std::string("\033[1;33m" + msg + "\033[0m"); }
+		void blue(const std::string& msg) { std::cout << std::string("\033[1;34m" + msg + "\033[0m"); }
+		void magenta(const std::string& msg) { std::cout << std::string("\033[1;35m" + msg + "\033[0m"); }
+		void cyan(const std::string& msg) { std::cout << std::string("\033[1;36m" + msg + "\033[0m"); }
+		void white(const std::string& msg) { std::cout << std::string("\033[0;37m" + msg + "\033[0m"); }
+		void inverse(const std::string& msg) { std::cout << std::string("\033[1;7m" + msg + "\033[0m"); }
 #elif LOGIQA_WIN
 		class colour
 		{
@@ -557,11 +557,11 @@ namespace logiqa
 			{
 				message("\n! "); magenta(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_exceptions().size()) + " exceptions occured. \n");
 			}
-			else if (test.logiqa_result_fails().empty())
+			else if (test.logiqa_result_fails().empty() && !test.logiqa_result_passes().empty())
 			{
 				message("\n. "); green(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_passes().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions passed. "); duration(test.logiqa_result_duration_ms());
 			}
-			else
+			else if (!test.logiqa_result_fails().empty())
 			{
 				message("\nx "); red(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_fails().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions failed.");
 			}
@@ -596,8 +596,8 @@ namespace logiqa
 			if (!total)
 				message("  No Tests run.\n|====================|\n");
 			message("      Total | " + std::to_string(total) + " "); duration(summary.duration_); message("\n"); 
-			if (summary.test_empty_)
-				message("      Empty | " + std::to_string(summary.test_empty_) + "\n");
+			//if (summary.test_empty_)
+			//	message("      Empty | " + std::to_string(summary.test_empty_) + "\n");
 			if (summary.skipped_)
 				yellow("\n " + std::to_string(summary.skipped_) + " test(s) skipped.");
 		}
@@ -700,32 +700,18 @@ namespace logiqa
 
 		void report(const test_list& tests, const results::summary& summary)
 		{
-			/*std::ostringstream oss;
-
+			std::ostringstream oss;
 			oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-
-			testsuite_raii ts(
-				
-				oss, session().suite_name_, session().summary_, disabled_count, "");
-			if (!session().results_.empty())
 			{
-				std::string group = session().results_.begin()->group;
-				auto g = std::make_shared<testsuite_raii>(oss, group, session().summary_groups_[group], 0, "  ");
-				for (auto r = session().results_.begin(); r != session().results_.end(); ++r)
-				{
-					if (r->group != group)
-					{
-						group = r->group;
-						g = std::make_shared<testsuite_raii>(oss, group, session().summary_groups_[group], 0, "  ");
-					}
-					testcase_raii t(oss, *r, "    ");
-				}
+				testsuite_raii ts(oss, session().test_runner_name_, summary, "");
+				for (unsigned int t = 0; t < tests.size(); ++t)
+					testcase_raii tc(oss, *tests[t], "  ");
 			}
 			std::ofstream file(filepath_);
 			if (file)
 				file << oss.str();
 			else
-				throw std::runtime_error("Unable to open file " + filepath_);*/
+				throw std::runtime_error("Unable to open file " + filepath_);
 		}
 	};
 }
@@ -828,7 +814,7 @@ namespace logiqa
 			auto itr = session().test_runner_name_.rfind('\\');
 #endif
 #ifdef LOGIQA_NIX	
-			auto itr = session().test_runner_name_.rfind('//');
+			auto itr = session().test_runner_name_.rfind('/');
 #endif
 			if (itr != 0 && itr != std::string::npos)
 				session().test_runner_name_ = session().test_runner_name_.substr(itr);
