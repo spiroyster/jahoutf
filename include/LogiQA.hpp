@@ -24,6 +24,7 @@
 #define LOGIQA_WIN 1
 #include <Windows.h>
 #elif defined(__linux__) || defined(__unix__)
+#define LOGIQA_NIX
 #define LOGIQA_ANSI 1
 #endif
 
@@ -119,27 +120,18 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 
 // Test body assertions...
 #define TEST_HALT throw std::runtime_error("Halting test.");
-#define REPORT_PASS(msg) logiqa_report_pass(__FILE__, __LINE__, msg);
-#define REPORT_FAIL(v, e, t, msg) logiqa_report_fail(__FILE__, __LINE__, v, e, t, msg);
+#define REPORT_PASS(assert_type, msg) logiqa_report_pass(__FILE__, __LINE__, assert_type, msg);
+#define REPORT_FAIL(assert_type, value, expected, tolerance, msg) logiqa_report_fail(__FILE__, __LINE__, assert_type, value, expected, tolerance, msg);
 
-#define ASSERT_PASS REPORT_PASS("")
-#define ASSERT_FAIL REPORT_FAIL("", "", "", "")
-#define ASSERT_EQ(x, y) if (x == y) { ASSERT_PASS } else { REPORT_FAIL(#x, #y, "", ""); };
-#define ASSERT_LEQ(x, y) if (x <= y) { ASSERT_PASS } else { REPORT_FAIL(#x, #y, "", ""); };
-#define ASSERT_GEQ(x, y) if (x >= y) { ASSERT_PASS } else { REPORT_FAIL(#x, #y, "", ""); };
-#define ASSERT_LT(x, y) if (x < y) { ASSERT_PASS } else { REPORT_FAIL(#x, #y, "", ""); };
-#define ASSERT_GT(x, y) if (x > y) { ASSERT_PASS } else { REPORT_FAIL(#x, #y, "", ""); };
-#define ASSERT_NEAR(x, y, e) if (abs(y-x) <= e) { ASSERT_PASS } else { REPORT_FAIL(#x, #y, #e, ""); };
+#define ASSERT_PASS REPORT_PASS("ASSERT_PASS", "")
+#define ASSERT_FAIL REPORT_FAIL("ASSERT_FAIL", "", "", "", "")
+#define ASSERT_EQ(x, y) if (x == y) { REPORT_PASS("ASSERT_EQ", "") } else { REPORT_FAIL("ASSERT_EQ", std::to_string(x), std::to_string(y), "", "") };
+#define ASSERT_LEQ(x, y) if (x <= y) { REPORT_PASS("ASSERT_LEQ", "") } else { REPORT_FAIL("ASSERT_LEQ", std::to_string(x), std::to_string(y), "", ""); };
+#define ASSERT_GEQ(x, y) if (x >= y) { REPORT_PASS("ASSERT_GEQ", "") } else { REPORT_FAIL("ASSERT_GEQ", std::to_string(x), std::to_string(y), "", ""); };
+#define ASSERT_LT(x, y) if (x < y) { REPORT_PASS("ASSERT_LT", "") } else { REPORT_FAIL("ASSERT_LT", std::to_string(x), std::to_string(y), "", ""); };
+#define ASSERT_GT(x, y) if (x > y) { REPORT_PASS("ASSERT_GT", "") } else { REPORT_FAIL("ASSERT_GT", std::to_string(x), std::to_string(y), "", ""); };
+#define ASSERT_NEAR(x, y, e) if (abs(y-x) <= e) { REPORT_PASS("ASSERT_NEAR", "") } else { REPORT_FAIL("ASSERT_NEAR", std::to_string(x), std::to_string(y), std::to_string(e), ""); };
 #define ASSERT(x) ASSERT_EQ(x, true);
-
-//#define EXPECT_EQ(x, y) ASSERT_EQ(x, y) TEST_HALT
-//#define EXPECT_LEQ(x, y) ASSERT_LEQ(x, y) TEST_HALT
-//#define EXPECT_GEQ(x, y) ASSERT_GEQ(x, y) TEST_HALT
-//#define EXPECT_LT(x, y) ASSERT_LT(x, y) TEST_HALT
-//#define EXPECT_GT(x, y) ASSERT_GT(x, y) TEST_HALT
-//#define EXPECT(x) ASSERT(x) TEST_HALT
-//#define EXPECT_NEAR(x, y, e) ASSERT_NEAR(x, y, e) TEST_HALT
-
 
 // Macro to initialise jahoutf when using custom main entry func... only needs to be used if not using JAHOUTF_MAIN and instead uses own custom main function.
 //  jahoutf_XXX arguments not supported with 
@@ -147,7 +139,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 { \
     namespace _ \
     { \
-        static std::unique_ptr<instance> session_; \
+        extern std::shared_ptr<instance> session_; \
     } \
     _::instance& session() \
     { \
@@ -164,8 +156,8 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 #define LOGIQA_TEST_RUNNER LOGIQA_INSTANCE void test_runner_main(); \
 int main(int argc, char** argv) \
 { \
-	logiqa::_::test_runner_arguments(argc, argv); \
-    test_runner_main(); \
+	if (logiqa::_::test_runner_arguments(argc, argv)) \
+		test_runner_main(); \
 	return 0; \
 } \
 void test_runner_main()
@@ -186,8 +178,8 @@ void test_runner_main()
 #define EVENT(user_event) logiqa::session().event_.reset(new user_event());
 
 // exception catcher macro...
-#define LOGIQA_EXCEPTION_CATCHER(location) catch(const std::exception& e) { logiqa_report_exception(__FILE__, __LINE__, #location, e.what()); } \
-catch (...) { logiqa_report_exception(__FILE__, __LINE__, #location, "Unknown exception"); }
+#define LOGIQA_EXCEPTION_CATCHER(location) catch(const std::exception& e) { logiqa_report_exception(__FILE__, __LINE__, "std::exception", #location, e.what()); } \
+catch (...) { logiqa_report_exception(__FILE__, __LINE__, "unknown exception", #location, ""); }
 
 
 
@@ -206,9 +198,10 @@ namespace logiqa
 	{
 		struct result
 		{
-			result(const std::string& filename, unsigned int line_number, const std::string& msg)
-				: msg_(msg), filename_(filename), line_number_(line_number) {}
+			result(const std::string& filename, unsigned int line_number, const std::string& t, const std::string& msg)
+				: type_(t), msg_(msg), filename_(filename), line_number_(line_number) {}
 
+			std::string type_;
 			std::string msg_;
 			std::string filename_;
 			unsigned int line_number_;
@@ -219,7 +212,7 @@ namespace logiqa
 		struct fail : public result
 		{
 			fail(const result& r, const std::string& value, const std::string& expected, const std::string& tolerance)
-				: result(r.filename_, r.line_number_, r.msg_), value_(value), expected_(expected), tolerance_(tolerance) {}
+				: result(r.filename_, r.line_number_, r.type_, r.msg_), value_(value), expected_(expected), tolerance_(tolerance) {}
 
 			std::string value_;
 			std::string expected_;
@@ -228,11 +221,22 @@ namespace logiqa
 
 		struct exception : public result
 		{
-			exception(const result& r, const std::string& location, const std::string& exception)
-				: result(r.filename_, r.line_number_, r.msg_), location_(location), exception_(exception) {}
+			exception(const result& r, const std::string& location)
+				: result(r.filename_, r.line_number_, r.type_, r.msg_), location_(location) {}
 
 			std::string location_;
-			std::string exception_;
+		};
+
+		struct summary
+		{
+			unsigned int test_passed_ = 0;
+			unsigned int test_failed_ = 0;
+			unsigned int test_empty_ = 0;
+			unsigned int exceptions_ = 0;
+			unsigned int assertions_passed_ = 0;
+			unsigned int assertions_failed_ = 0;
+			unsigned int skipped_ = 0;
+			unsigned int duration_ = 0;
 		};
 
 	}
@@ -240,7 +244,7 @@ namespace logiqa
 	class report_interface
 	{
 	public:
-		virtual void report() {}
+		virtual void report(const test_list& tests, const results::summary& summary) {}
 		virtual std::string name() = 0;
 	};
 
@@ -254,7 +258,9 @@ namespace logiqa
 		virtual void case_exception(const test& test, const results::exception& info) {}
 		virtual void case_end(const test& test) {}
 		virtual void suite_start(const test_list& tests) {}
-		virtual void suite_end(const test_list& tests) {}
+		virtual void suite_end(const test_list& tests, const results::summary& summary) {}
+		virtual void list_test(const test& test, bool list_tags) {}
+		virtual void list_tag(const std::string& tag, unsigned int count) {}
 	};
 
 	namespace _
@@ -266,22 +272,12 @@ namespace logiqa
 			std::shared_ptr<event_interface> event_;
 			std::vector<std::shared_ptr<report_interface>> report_;
 			std::vector<std::string> tags_;
+			std::string test_runner_name_;
 
 			bool shuffle_ = false;
 			bool list_ = false;
+			bool list_tags_ = false;
 			bool silence_ = false;
-
-			void report_all()
-			{
-				for (unsigned int r = 0; r < report_.size(); ++r)
-				{
-					try { report_[r]->report(); }
-					catch (const std::exception& e) { event_->message("Exception thrown in reporter " + report_[r]->name() + ". " + e.what()); }
-					catch (...) { event_->message("Exception thrown in reporter " + report_[r]->name()); }
-				}
-			}
-
-			~instance() { report_all(); }
 		};
 	}
 
@@ -307,26 +303,29 @@ namespace logiqa
 		}
 
 		// unique name...
-		std::string logiqa_unique_name() const { return name_ + "[" + std::to_string(param_index_) + "]"; }
+		std::string logiqa_unique_name() const 
+		{ 
+			return name_ + "[" + std::to_string(param_index_) + "]";
+		}
 
 		// report pass...
-		void logiqa_report_pass(const std::string& filename, unsigned int line_number, const std::string& msg)
+		void logiqa_report_pass(const std::string& filename, unsigned int line_number, const std::string& assert_type, const std::string& msg)
 		{
-			passes_.push_back(results::pass(filename, line_number, msg));
+			passes_.push_back(results::pass(filename, line_number, assert_type, msg));
 			logiqa::session().event_->case_success(*this, passes_.back());
 		}
 
 		// report fail...
-		void logiqa_report_fail(const std::string& filename, unsigned int line_number, const std::string& value, const std::string& expected, const std::string& tolerance, const std::string& msg)
+		void logiqa_report_fail(const std::string& filename, unsigned int line_number, const std::string& assert_type, const std::string& value, const std::string& expected, const std::string& tolerance, const std::string& msg)
 		{
-			fails_.push_back(results::fail(results::result(filename, line_number, msg), value, expected, tolerance));
+			fails_.push_back(results::fail(results::result(filename, line_number, assert_type, msg), value, expected, tolerance));
 			logiqa::session().event_->case_fail(*this, fails_.back());
 		}
 
 		// report exception...
-		void logiqa_report_exception(const std::string& filename, unsigned int line_number, const std::string& location, const std::string& msg)
+		void logiqa_report_exception(const std::string& filename, unsigned int line_number, const std::string& exception_type, const std::string& location, const std::string& what)
 		{
-			exceptions_.push_back(results::exception(results::result(filename, line_number, msg), location, ""));
+			exceptions_.push_back(results::exception(results::result(filename, line_number, exception_type, what), location));
 			logiqa::session().event_->case_exception(*this, exceptions_.back());
 		}
 
@@ -346,6 +345,7 @@ namespace logiqa
 				
 			return valid;
 		}
+		const std::string& logiqa_tags() const { return tags_; }
 
 		// run-time test info...
 		const std::string& logiqa_name() const { return name_; }
@@ -404,8 +404,35 @@ namespace logiqa
 		}
 	};
 
-}
 
+	namespace results
+	{
+		static summary summerise(const test_list& tests, const std::map<std::string, test*>& all_tests)
+		{
+			summary total;
+			for (auto t = 0; t < tests.size(); ++t)
+			{
+				total.assertions_passed_ += static_cast<unsigned int>(tests[t]->logiqa_result_passes().size());
+				total.assertions_failed_ += static_cast<unsigned int>(tests[t]->logiqa_result_fails().size());
+				total.exceptions_ += static_cast<unsigned int>(tests[t]->logiqa_result_exceptions().size());
+				total.duration_ += tests[t]->logiqa_result_duration_ms();
+
+				if (!tests[t]->logiqa_result_exceptions().empty())
+					++total.exceptions_;
+				else if (!tests[t]->logiqa_result_fails().empty())
+					++total.test_failed_;
+				else if (!tests[t]->logiqa_result_passes().empty())
+					++total.test_passed_;
+				else
+					++total.test_empty_;
+			}
+			total.skipped_ = static_cast<unsigned int>(all_tests.size() - tests.size());
+			return total;
+		}
+
+	}
+
+}
 
 
 
@@ -413,8 +440,6 @@ namespace logiqa
 
 #ifdef LOGIQA_INCLUDE_DEFAULT_CONSOLE
 #include <iostream>
-#include <sstream>
-
 namespace logiqa
 {
 	// stdout output...
@@ -461,12 +486,34 @@ namespace logiqa
 		void white(const std::string& msg) { colour(msg, 15); }
 		void inverse(const std::string& msg) { colour(msg, 10); }
 #endif
-
-		std::string header(const test& test) { return std::string("\n" + test.logiqa_name() + " "); }
-		std::string duration(unsigned int d) { return std::string("(" + std::to_string(d) + "ms)"); }
 		virtual void message(const std::string& msg) { std::cout << msg; }
+		std::string header_string(const test& test)
+		{
+			return test.logiqa_param_num() ? test.logiqa_unique_name() : test.logiqa_name();
+		}
+		virtual void header(const test& test) 
+		{ 
+			message("\n : "); message(test.logiqa_name());
+			if (test.logiqa_param_num())
+			{
+				message("["); cyan(std::to_string(test.logiqa_param_num())); message("]");
+			}
+			message(" : ");
+		}
+		virtual void line(const results::result& r)
+		{
+			cyan(r.filename_ + ":"); yellow(std::to_string(r.line_number_));
+		}
+		virtual void duration(unsigned int d) 
+		{ 
+			message("(" + std::to_string(d) + "ms)"); 
+		}
+		
 		void results_bar(unsigned int successes, unsigned int failures)
 		{
+			if (!successes && !failures)
+				return;
+
 			unsigned int total = successes + failures, length = 20;
 			float percentage = static_cast<float>(failures) / static_cast<float>(total);
 			unsigned int f_bar = static_cast<int>(percentage * static_cast<float>(length));
@@ -476,61 +523,104 @@ namespace logiqa
 		}
 		virtual void case_success(const test& test, const results::pass& result)
 		{
-			if (!result.msg_.empty())
-				message(header(test)); cyan(result.filename_ + ":"); yellow(std::to_string(result.line_number_)); message(result.msg_ + "\n");
+			if (!result.msg_.empty()) { header(test); message(" "); line(result); message(" " + result.msg_); }
 		}
 		virtual void case_fail(const test& test, const results::fail& result)
 		{
-			message(header(test)); red("fail "); cyan(result.filename_ + ":"); yellow(std::to_string(result.line_number_));
-			if (!result.value_.empty())     { message("\nValue     | "); white(result.value_); }
-			if (!result.expected_.empty())  { message("\nExpected  | "); white(result.expected_); }
-			if (!result.tolerance_.empty()) { message("\nTolerance | "); white(result.tolerance_); }
-			if (!result.msg_.empty()) { message(result.msg_ + "\n"); }
+			if (test.logiqa_result_fails().size() == 1 && test.logiqa_result_exceptions().empty())
+				message("\n\n  " + header_string(test) + " : ");
+
+			message("\n\t"); line(result); message(" ");
+			if (result.value_.empty() && result.expected_.empty() && result.tolerance_.empty())
+				message(result.type_ + "()");
+			if (!result.value_.empty() && !result.expected_.empty() && result.tolerance_.empty())
+				message(result.type_ + "(" + result.value_ + ", " + result.expected_ + ")");
+			if (!result.value_.empty() && !result.expected_.empty() && !result.tolerance_.empty())
+				message(result.type_ + "(" + result.value_ + ", " + result.expected_ + ") tolerance " + result.tolerance_);
+			if (!result.msg_.empty())
+				message("\n : " + result.msg_);
+			
 		}
 		virtual void case_exception(const test& test, const results::exception& result)
 		{
-			message(header(test) + result.exception_ + " thrown in " + result.location_ + " "); cyan(result.filename_ + ":"); yellow(std::to_string(result.line_number_)); message(result.msg_ + "\n");
+			if (test.logiqa_result_exceptions().size() == 1 && test.logiqa_result_fails().empty())
+				message("\n\n  " + header_string(test) + " : ");
+
+			message("\n\t"); line(result); message(" "); magenta("{"); yellow(result.location_); magenta("}");
+			if (!result.msg_.empty())
+				magenta(" " + result.msg_);
+			
 		}
 		virtual void case_end(const test& test)
 		{
-			message(header(test));
-			if (test.logiqa_result_fails().empty())
+			if (!test.logiqa_result_exceptions().empty())
 			{
-				green(" PASSED "); message(std::to_string(test.logiqa_result_passes().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions succeeded. " + duration(test.logiqa_result_duration_ms()) + '\n');
+				message("\n! "); magenta(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_exceptions().size()) + " exceptions occured. \n");
+			}
+			else if (test.logiqa_result_fails().empty())
+			{
+				message("\n. "); green(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_passes().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions passed. "); duration(test.logiqa_result_duration_ms());
 			}
 			else
 			{
-				red(" FAILED "); message(std::to_string(test.logiqa_result_fails().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions failed.\n");
+				message("\nx "); red(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_fails().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions failed.");
 			}
 		}
 		virtual void suite_start(const test_list& tests_to_run)
 		{
-			message("Running " + std::to_string(tests_to_run.size()) + " tests. (type \"?\" for help)\n");
+			message("Running " + std::to_string(tests_to_run.size()) + " tests. (type \"?\" for help) ");
 			if (session().shuffle_)
 				cyan(" [Shuffle] ");
-			if (session().shuffle_)
-				yellow(" [" + std::to_string(session().tests_.size() - tests_to_run.size()) + " tests are disabled.]\n");
-		}
-
-		virtual void suite_end(const test_list& tests_to_run)
-		{
-			inverse("Total\n");
-			unsigned int passed = 0, failed = 0, exceptions = 0, time_taken = 0, tests_passed = 0;
-			for (auto t = 0; t < tests_to_run.size(); ++t)
-			{
-				passed += static_cast<unsigned int>(tests_to_run[t]->logiqa_result_passes().size());
-				failed += static_cast<unsigned int>(tests_to_run[t]->logiqa_result_fails().size());
-				exceptions += static_cast<unsigned int>(tests_to_run[t]->logiqa_result_exceptions().size());
-				time_taken += tests_to_run[t]->logiqa_result_duration_ms();
-				if (tests_to_run[t]->logiqa_result_fails().empty() && !tests_to_run[t]->logiqa_result_passes().empty())
-					++tests_passed;
-			}
-			results_bar(passed, failed);
-			message(std::to_string(tests_passed) + "/" + std::to_string(tests_to_run.size()) + " tests passed (" + std::to_string(passed) + "/" + std::to_string(passed + failed) + " assertions passed). " + duration(time_taken) + "\n");
 			unsigned int skipped = static_cast<unsigned int>(session().tests_.size() - tests_to_run.size());
 			if (skipped)
-				yellow(std::to_string(skipped) + " tests skipped.\n");
+				yellow(" [" + std::to_string(skipped) + " tests are disabled.]");
+			message("\n|====================|\n");
 		}
+
+		virtual void suite_end(const test_list& tests_to_run, const results::summary& summary)
+		{
+			message("\n\n");
+			unsigned int total = summary.test_passed_ + summary.test_failed_ + summary.exceptions_;
+			unsigned int total_assertions = summary.assertions_failed_ + summary.assertions_passed_;
+
+			if (summary.test_passed_)
+			{
+				results_bar(summary.test_passed_, summary.test_failed_); message("\n");
+				message("     Passed | " + std::to_string(summary.test_passed_) + " (" + std::to_string(summary.assertions_passed_) + "/" + std::to_string(total_assertions) + " assertions)\n");
+			}
+			if (summary.test_failed_)
+				message("     Failed | " + std::to_string(summary.test_failed_) + " (" + std::to_string(summary.assertions_failed_) + "/" + std::to_string(total_assertions) + " assertions)\n");
+			if (summary.exceptions_)
+				message(" Exceptions | " + std::to_string(summary.exceptions_) + "\n");
+			
+			if (!total)
+				message("  No Tests run.\n|====================|\n");
+			message("      Total | " + std::to_string(total) + " "); duration(summary.duration_); message("\n"); 
+			if (summary.test_empty_)
+				message("      Empty | " + std::to_string(summary.test_empty_) + "\n");
+			if (summary.skipped_)
+				yellow("\n " + std::to_string(summary.skipped_) + " test(s) skipped.");
+		}
+
+		void list_test(const test& test, bool list_tags)
+		{
+			if (!test.logiqa_param_num())
+			{
+				message(test.logiqa_name());
+				if (!test.logiqa_tags().empty() && session().list_tags_)
+				{
+					message(" ["); cyan(test.logiqa_tags()); message("]\n");
+				}
+				else
+					message("\n");
+			}
+		}
+
+		void list_tag(const std::string& tag, unsigned int count)
+		{
+			cyan(tag + "\n");
+		}
+
 		
 	};
 }
@@ -538,25 +628,123 @@ namespace logiqa
 
 
 // xUnit output...
+#ifdef LOGIQA_INCLUDE_DEFAULT_XUNIT
+#include <fstream>
+#include <sstream>
+namespace logiqa
+{
+	class xUnit : public report_interface
+	{
+		static void replace_all(std::string& str, const std::string& what, const std::string& with)
+		{
+			std::size_t itr = str.find(what);
+			while (itr != std::string::npos)
+			{
+				str.replace(itr, itr + what.size(), with.c_str());
+				itr = str.find(what);
+			}
+		}
+		static std::string escape_xml_chars(const std::string& syntaxToConvert)
+		{
+			std::string convertedSyntax = syntaxToConvert;
+			replace_all(convertedSyntax, ">", "&gt;");
+			replace_all(convertedSyntax, "<", "&lt;");
+			replace_all(convertedSyntax, "&", "&amp;");
+			replace_all(convertedSyntax, "'", "&apos;");
+			replace_all(convertedSyntax, "\"", "&quot;");
+			return convertedSyntax;
+		}
 
+		class testsuite_raii
+		{
+			std::ostringstream& oss_;
+			std::string close_syntax_;
+		public:
+			testsuite_raii(std::ostringstream& oss, const std::string& name, const results::summary& summary, const std::string& indent)
+				: oss_(oss)
+			{
+				oss_ << "\n" << indent << "<testsuite name=\"" << name << "\" tests=\"" << (summary.test_passed_ + summary.test_failed_ + summary.exceptions_) << "\" failures=\"" << summary.test_passed_ << "\" disabled=\"" << summary.skipped_ << "\" errors=\"" << summary.exceptions_ << "\" time=\"" << summary.duration_ << "\">";
+				close_syntax_ = std::string("\n" + indent + "</testsuite>\n");
+			}
+			~testsuite_raii()
+			{
+				oss_ << close_syntax_;
+			}
+		};
+
+		class testcase_raii
+		{
+			std::ostringstream& oss_;
+			std::string close_syntax_;
+		public:
+			testcase_raii(std::ostringstream& oss, const test& test, const std::string& indent)
+				: oss_(oss)
+			{
+				oss_ << "\n" << indent << "<testcase name=\"" << test.logiqa_unique_name() << "\" status=\"run\" time=\"" << test.logiqa_result_duration_ms() << ">";
+				for (auto f = test.logiqa_result_fails().begin(); f != test.logiqa_result_fails().end(); ++f)
+					oss_ << "\n" << indent << "  " << "<failure message=\"" << xUnit::escape_xml_chars(f->msg_) << "\"></failure>";
+				for (auto f = test.logiqa_result_fails().begin(); f != test.logiqa_result_fails().end(); ++f)
+					oss_ << "\n" << indent << "  " << "<failure message=\"" << xUnit::escape_xml_chars(f->msg_) << "\"></failure>";
+				oss_ << "\n" << indent << "</testcase>\n";
+			}
+			~testcase_raii()
+			{
+				oss_ << close_syntax_;
+			}
+		};
+
+	public:
+		std::string filepath_;
+		xUnit(const std::string& filename) : filepath_(filename) {}
+		std::string name() { return std::string("xUnit xml (" + filepath_ + ")"); }
+
+		void report(const test_list& tests, const results::summary& summary)
+		{
+			/*std::ostringstream oss;
+
+			oss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+
+			testsuite_raii ts(
+				
+				oss, session().suite_name_, session().summary_, disabled_count, "");
+			if (!session().results_.empty())
+			{
+				std::string group = session().results_.begin()->group;
+				auto g = std::make_shared<testsuite_raii>(oss, group, session().summary_groups_[group], 0, "  ");
+				for (auto r = session().results_.begin(); r != session().results_.end(); ++r)
+				{
+					if (r->group != group)
+					{
+						group = r->group;
+						g = std::make_shared<testsuite_raii>(oss, group, session().summary_groups_[group], 0, "  ");
+					}
+					testcase_raii t(oss, *r, "    ");
+				}
+			}
+			std::ofstream file(filepath_);
+			if (file)
+				file << oss.str();
+			else
+				throw std::runtime_error("Unable to open file " + filepath_);*/
+		}
+	};
+}
+#endif
 
 
 namespace logiqa
 {
 	namespace _
 	{
+	
 		static void test_runner_run_tests()
 		{
+			auto inst = session();
+
 			// assert there is an event or at least a stub in the event...
 			if (session().silence_)
 				session().event_.reset(new event_interface());
-			else
-			{
-				// if there is no event speicfied, install the default...
-				if (!session().event_)
-					session().event_.reset(new console());
-			}
-
+			
 			// get all the tests to run...
 			test_list tests_to_run;
 			tests_to_run.reserve(session().tests_.size());
@@ -573,19 +761,34 @@ namespace logiqa
 			}
 			else
 			{
-				auto inst = session();
 				for (auto itr = session().tests_.begin(); itr != session().tests_.end(); ++itr)
 					tests_to_run.push_back(itr->second);
 			}
 
 			// if we are listing them...
-			if (session().list_)
+			if (session().list_ || session().list_tags_)
 			{
-				for (unsigned int t = 0; t < tests_to_run.size(); ++t)
+				// If we are listing just the tags...
+				if (!session().list_ && session().list_tags_)
 				{
-					// only output if not paramter...
-					if (!tests_to_run[t]->logiqa_param_num())
-						session().event_->message(tests_to_run[t]->logiqa_name() + "\n");
+					std::string buf;
+					std::map<std::string, unsigned int> tags;
+					for (unsigned int t = 0; t < tests_to_run.size(); ++t)
+					{
+						// tokenise the tags...
+						std::stringstream ss(tests_to_run[t]->logiqa_tags());
+						while (ss >> buf)
+							++tags[buf];
+					}
+
+					// output the tags...
+					for (auto itr = tags.begin(); itr != tags.end(); ++itr)
+						session().event_->list_tag(itr->first, itr->second);
+				}
+				else
+				{
+					for (unsigned int t = 0; t < tests_to_run.size(); ++t)
+						session().event_->list_test(*tests_to_run[t], session().list_tags_);
 				}
 				return;
 			}
@@ -602,29 +805,77 @@ namespace logiqa
 				tests_to_run[t]->logiqa_run();
 				logiqa::session().event_->case_end(*tests_to_run[t]);
 			}
-			logiqa::session().event_->suite_end(tests_to_run);
+			results::summary total = results::summerise(tests_to_run, session().tests_);
+			logiqa::session().event_->suite_end(tests_to_run, total);
+
+			// report
+			for (auto reporter = session().report_.begin(); reporter != session().report_.end(); ++reporter)
+			{
+				try { (*reporter)->report(tests_to_run, total); }
+				catch (const std::exception& e) { std::cerr << "Exception thrown in reporter " << (*reporter)->name() << ", " << e.what() << "\n"; }
+				catch (...) { std::cerr << "Unknown exception thrown in reporter " << (*reporter)->name() << "\n"; }
+			}
 		}
 
-		static void test_runner_arguments(int argc, char** argv)
+		static bool test_runner_arguments(int argc, char** argv)
 		{
+			// by default, use console output...
+#ifdef LOGIQA_INCLUDE_DEFAULT_CONSOLE
+			session().event_.reset(new console());
+#endif
+			session().test_runner_name_ = std::string(*argv);
+#ifdef LOGIQA_WIN
+			auto itr = session().test_runner_name_.rfind('\\');
+#endif
+#ifdef LOGIQA_NIX	
+			auto itr = session().test_runner_name_.rfind('//');
+#endif
+			if (itr != 0 && itr != std::string::npos)
+				session().test_runner_name_ = session().test_runner_name_.substr(itr);
+
 			for (int i = 1; i < argc; ++i)
 			{
 				std::string arg(*(argv + i));
 				if (arg == "-silent")
 					logiqa::session().silence_ = true;
+				else if (arg == "-tags")
+					logiqa::session().list_tags_ = true;
 				else if (arg == "-list")
 					logiqa::session().list_ = true;
 				else if (arg == "-shuffle")
 					logiqa::session().shuffle_ = true;
+#ifdef LOGIQA_INCLUDE_DEFAULT_XUNIT
+				else if (arg.find("-xunit=") != std::string::npos)
+				{
+					auto xunit = std::make_shared<xUnit>(arg.substr(7));
+					session().report_.push_back(xunit);
+				}
+#endif
 				else if (arg == "?" || arg == "-help")
 				{
-					std::ostringstream oss;
-					oss << "LogiQA test runner.\n";
-					logiqa::session().event_->message(oss.str());
+					std::string str;
+					str.append("LogiQA test runner.\n");
+					str.append("Usage: > " + session().test_runner_name_ + " [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n");
+					str.append("\n");
+					str.append("-shuffle : shuffle the tests before running them.\n");
+					str.append("-silent  : silence events. No console output.\n"); 
+#ifdef LOGIQA_INCLUDE_DEFAULT_XUNIT
+					str.append("-xunit   : specify an xml filename to report xUnit to.\n");
+#endif
+					str.append("-list    : list the tests in this test program.\n");
+					str.append("-tags    : list the tags.\n");
+					str.append("\n");
+					str.append("Using -list and -tags together, will list the tests and associated tags for each test.\n");
+					str.append("Pattern matching works on tags, name, and unique name (i.e \"testname[42]\") will match testname with param index 42.\n");
+					str.append("All tests except those matching patterns will be disabled/skipped.\n");
+					
+					session().event_->message(str);
+					return false;
 				}
 				else
 					logiqa::session().tags_.push_back(arg);
 			}
+			return true;
 		}
 	}
 }
