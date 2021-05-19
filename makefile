@@ -2,7 +2,7 @@ CXX=g++
 
 test: ./test/main.cpp ./test/assertions.cpp
 	mkdir -p bin
-	$(CXX) test/main.cpp test/assertions.cpp -o bin/test
+	$(CXX) test/main.cpp test/assertions.cpp test/fixtures.cpp -o bin/test
 
 example: ./examples/example.cpp
 	mkdir -p bin

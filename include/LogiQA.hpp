@@ -172,7 +172,7 @@ void test_runner_main()
 #define SHUFFLE logiqa::session().shuffle_ = true;
 
 // Add a user reporter...
-#define REPORT(user_reporter) logiqa::session().report_.push_back(std::make_shared<user_reporter>());
+#define REPORT(user_reporter) { auto ur = std::make_shared<user_reporter>(); }
 
 // Set the user event hooks...
 #define EVENT(user_event) logiqa::session().event_.reset(new user_event());
@@ -417,9 +417,7 @@ namespace logiqa
 				total.exceptions_ += static_cast<unsigned int>(tests[t]->logiqa_result_exceptions().size());
 				total.duration_ += tests[t]->logiqa_result_duration_ms();
 
-				if (!tests[t]->logiqa_result_exceptions().empty())
-					++total.exceptions_;
-				else if (!tests[t]->logiqa_result_fails().empty())
+				if (!tests[t]->logiqa_result_fails().empty())
 					++total.test_failed_;
 				else if (!tests[t]->logiqa_result_passes().empty())
 					++total.test_passed_;
@@ -596,10 +594,11 @@ namespace logiqa
 			if (!total)
 				message("  No Tests run.\n|====================|\n");
 			message("      Total | " + std::to_string(total) + " "); duration(summary.duration_); message("\n"); 
-			//if (summary.test_empty_)
-			//	message("      Empty | " + std::to_string(summary.test_empty_) + "\n");
+			if (summary.test_empty_)
+				message("\n" + std::to_string(summary.test_empty_) + " test(s) empty.");
 			if (summary.skipped_)
 				yellow("\n " + std::to_string(summary.skipped_) + " test(s) skipped.");
+			message("\n");
 		}
 
 		void list_test(const test& test, bool list_tags)
