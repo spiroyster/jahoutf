@@ -36,7 +36,7 @@
 	class test_runner_wrapper : public logiqa::test \
 	{ \
 	public: \
-		test_runner_wrapper() : logiqa::test(#name, 0, tags) { logiqa::session().tests_[logiqa_unique_name()] = this; } \
+		test_runner_wrapper() : logiqa::test(#name, 0, tags) { session().tests_[logiqa_unique_name()] = this; } \
 		void logiqa_body() override; \
 	}; \
 	static test_runner_wrapper trw; \
@@ -50,7 +50,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 	{ \
 	public: \
 		test_runner_wrapper() : logiqa::test("", 0, "") {} \
-		test_runner_wrapper(int index) : logiqa::test(#name, index, tags) { logiqa::session().tests_[logiqa_unique_name()] = this; } \
+		test_runner_wrapper(int index) : logiqa::test(#name, index, tags) { session().tests_[logiqa_unique_name()] = this; } \
 		const auto& logiqa_param() { return params.get_values()[logiqa_param_num()]; } \
 		void logiqa_body() override; \
 	}; \
@@ -71,7 +71,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 	class test_runner_wrapper : public logiqa::test, public fixture \
 	{ \
 	public: \
-		test_runner_wrapper() : logiqa::test(#name, 0, tags) { logiqa::session().tests_[logiqa_unique_name()] = this; } \
+		test_runner_wrapper() : logiqa::test(#name, 0, tags) { session().tests_[logiqa_unique_name()] = this; } \
 		void logiqa_body() override; \
 		void logiqa_run() override \
 		{ \
@@ -93,7 +93,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 	{ \
 	public: \
 		test_runner_wrapper() : logiqa::test("", 0, "") {} \
-		test_runner_wrapper(int index) : logiqa::test(#name, index, tags) { logiqa::session().tests_[logiqa_unique_name()] = this; } \
+		test_runner_wrapper(int index) : logiqa::test(#name, index, tags) { session().tests_[logiqa_unique_name()] = this; } \
 		void logiqa_body() override; \
 		const auto& logiqa_param() { return params.get_values()[logiqa_param_num()]; } \
 		void logiqa_run() override \
@@ -133,49 +133,32 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 #define ASSERT_NEAR(x, y, e) if (abs(y-x) <= e) { REPORT_PASS("ASSERT_NEAR", "") } else { REPORT_FAIL("ASSERT_NEAR", std::to_string(x), std::to_string(y), std::to_string(e), ""); };
 #define ASSERT(x) ASSERT_EQ(x, true);
 
-// Macro to initialise jahoutf when using custom main entry func... only needs to be used if not using JAHOUTF_MAIN and instead uses own custom main function.
-//  jahoutf_XXX arguments not supported with 
-#define LOGIQA_INSTANCE namespace logiqa \
-{ \
-    namespace _ \
-    { \
-        static std::shared_ptr<instance> session_; \
-    } \
-    _::instance& session() \
-    { \
-        if (!_::session_) \
-        { \
-            _::session_.reset(new _::instance()); \
-        } \
-        return *_::session_; \
-    } \
-}
-
 // Macro for defining main function, user can perform custom global setup and teardown (applied to entire test program) also processed -jahoutf arguments.
 // Must explicitly call RUNALL, RUNALL_RANDOMIZED or explicit tests?
-#define LOGIQA_TEST_RUNNER LOGIQA_INSTANCE void test_runner_main(); \
+#define LOGIQA_TEST_RUNNER \
+void test_runner_main(); \
 int main(int argc, char** argv) \
 { \
-	if (logiqa::_::test_runner_arguments(argc, argv)) \
+	if (logiqa::_::test_runner_arguments(argc, argv, logiqa::session())) \
 		test_runner_main(); \
 	return 0; \
 } \
 void test_runner_main()
 
 // Run all the tests.... used if user has global startup and teardown functionality in main....
-#define RUNALL logiqa::_::test_runner_run_tests();
+#define RUNALL logiqa::_::test_runner_run_tests(logiqa::session());
 
 // Run all the tests, silence the output...
-#define SILENCE logiqa::session().shuffle_ = true;
+#define SILENCE logiqa::session().silence_ = true;
 
 // Shuffle the tests...
 #define SHUFFLE logiqa::session().shuffle_ = true;
 
 // Add a user reporter...
-#define REPORT(user_reporter) { auto ur = std::make_shared<user_reporter>(); }
+#define REPORT(user_reporter) logiqa::session().report_.push_back(std::make_shared<user_reporter>());
 
 // Set the user event hooks...
-#define EVENT(user_event) logiqa::session().event_.reset(new user_event());
+#define EVENT(user_event) logiqa::session().event_ = std::make_unique<user_event>();
 
 // exception catcher macro...
 #define LOGIQA_EXCEPTION_CATCHER(location) catch(const std::exception& e) { logiqa_report_exception(__FILE__, __LINE__, "std::exception", #location, e.what()); } \
@@ -268,6 +251,18 @@ namespace logiqa
 		class instance
 		{
 		public:
+			instance()
+			{
+				int y = 0;
+				++y;
+			}
+
+			~instance()
+			{
+				int y = 0;
+				++y;
+			}
+
 			std::map<std::string, test*> tests_;
 			std::shared_ptr<event_interface> event_;
 			std::vector<std::shared_ptr<report_interface>> report_;
@@ -278,10 +273,21 @@ namespace logiqa
 			bool list_ = false;
 			bool list_tags_ = false;
 			bool silence_ = false;
+
+			static instance& get_instance()
+			{
+				static instance INSTANCE;
+				return INSTANCE;
+			}
 		};
+
 	}
 
-	extern _::instance& session();
+	static _::instance& session()
+	{
+		return _::instance::get_instance();
+	}
+
 
 	class test
 	{
@@ -564,12 +570,13 @@ namespace logiqa
 				message("\nx "); red(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_fails().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions failed.");
 			}
 		}
-		virtual void suite_start(const test_list& tests_to_run)
+		virtual void suite_start(const test_list& tests_to_run, const _::instance& inst)
 		{
 			message("Running " + std::to_string(tests_to_run.size()) + " tests. (type \"?\" for help) ");
-			if (session().shuffle_)
+			//if (session().shuffle_)
+			if (inst.shuffle_)
 				cyan(" [Shuffle] ");
-			unsigned int skipped = static_cast<unsigned int>(session().tests_.size() - tests_to_run.size());
+			unsigned int skipped = static_cast<unsigned int>(inst.tests_.size() - tests_to_run.size());
 			if (skipped)
 				yellow(" [" + std::to_string(skipped) + " tests are disabled.]");
 			message("\n|====================|\n");
@@ -606,7 +613,7 @@ namespace logiqa
 			if (!test.logiqa_param_num())
 			{
 				message(test.logiqa_name());
-				if (!test.logiqa_tags().empty() && session().list_tags_)
+				if (!test.logiqa_tags().empty() && list_tags)
 				{
 					message(" ["); cyan(test.logiqa_tags()); message("]\n");
 				}
@@ -722,39 +729,39 @@ namespace logiqa
 	namespace _
 	{
 	
-		static void test_runner_run_tests()
+		static void test_runner_run_tests(_::instance& session)
 		{
-			auto inst = session();
+			//auto inst = session();
 
 			// assert there is an event or at least a stub in the event...
-			if (session().silence_)
-				session().event_.reset(new event_interface());
+			if (session.silence_)
+				session.event_.reset(new event_interface());
 			
 			// get all the tests to run...
 			test_list tests_to_run;
-			tests_to_run.reserve(session().tests_.size());
-			if (!session().tags_.empty())
+			tests_to_run.reserve(session.tests_.size());
+			if (!session.tags_.empty())
 			{
-				for (auto itr = session().tests_.begin(); itr != session().tests_.end(); ++itr)
+				for (auto itr = session.tests_.begin(); itr != session.tests_.end(); ++itr)
 				{
 					bool is_tagged = false;
-					for (unsigned int t = 0; t < session().tags_.size() && !is_tagged; ++t)
-						is_tagged = itr->second->logiqa_tagged(session().tags_[t]);
+					for (unsigned int t = 0; t < session.tags_.size() && !is_tagged; ++t)
+						is_tagged = itr->second->logiqa_tagged(session.tags_[t]);
 					if (is_tagged)
 						tests_to_run.push_back(itr->second);
 				}
 			}
 			else
 			{
-				for (auto itr = session().tests_.begin(); itr != session().tests_.end(); ++itr)
+				for (auto itr = session.tests_.begin(); itr != session.tests_.end(); ++itr)
 					tests_to_run.push_back(itr->second);
 			}
 
 			// if we are listing them...
-			if (session().list_ || session().list_tags_)
+			if (session.list_ || session.list_tags_)
 			{
 				// If we are listing just the tags...
-				if (!session().list_ && session().list_tags_)
+				if (!session.list_ && session.list_tags_)
 				{
 					std::string buf;
 					std::map<std::string, unsigned int> tags;
@@ -768,18 +775,18 @@ namespace logiqa
 
 					// output the tags...
 					for (auto itr = tags.begin(); itr != tags.end(); ++itr)
-						session().event_->list_tag(itr->first, itr->second);
+						session.event_->list_tag(itr->first, itr->second);
 				}
 				else
 				{
 					for (unsigned int t = 0; t < tests_to_run.size(); ++t)
-						session().event_->list_test(*tests_to_run[t], session().list_tags_);
+						session.event_->list_test(*tests_to_run[t], session.list_tags_);
 				}
 				return;
 			}
 
 			// if shuffle, randomise...
-			if (session().shuffle_)
+			if (session.shuffle_)
 				std::random_shuffle(tests_to_run.begin(), tests_to_run.end());
 			
 			// run the tests...
@@ -790,11 +797,11 @@ namespace logiqa
 				tests_to_run[t]->logiqa_run();
 				logiqa::session().event_->case_end(*tests_to_run[t]);
 			}
-			results::summary total = results::summerise(tests_to_run, session().tests_);
+			results::summary total = results::summerise(tests_to_run, session.tests_);
 			logiqa::session().event_->suite_end(tests_to_run, total);
 
 			// report
-			for (auto reporter = session().report_.begin(); reporter != session().report_.end(); ++reporter)
+			for (auto reporter = session.report_.begin(); reporter != session.report_.end(); ++reporter)
 			{
 				try { (*reporter)->report(tests_to_run, total); }
 				catch (const std::exception& e) { std::cerr << "Exception thrown in reporter " << (*reporter)->name() << ", " << e.what() << "\n"; }
@@ -802,21 +809,21 @@ namespace logiqa
 			}
 		}
 
-		static bool test_runner_arguments(int argc, char** argv)
+		static bool test_runner_arguments(int argc, char** argv, _::instance& session)
 		{
 			// by default, use console output...
 #ifdef LOGIQA_INCLUDE_DEFAULT_CONSOLE
-			session().event_.reset(new console());
+			session.event_.reset(new console());
 #endif
-			session().test_runner_name_ = std::string(*argv);
+			session.test_runner_name_ = std::string(*argv);
 #ifdef LOGIQA_WIN
-			auto itr = session().test_runner_name_.rfind('\\');
+			auto itr = session.test_runner_name_.rfind('\\');
 #endif
 #ifdef LOGIQA_NIX	
 			auto itr = session().test_runner_name_.rfind('/');
 #endif
 			if (itr != 0 && itr != std::string::npos)
-				session().test_runner_name_ = session().test_runner_name_.substr(itr);
+				session.test_runner_name_ = session.test_runner_name_.substr(itr);
 
 			for (int i = 1; i < argc; ++i)
 			{
@@ -833,14 +840,14 @@ namespace logiqa
 				else if (arg.find("-xunit=") != std::string::npos)
 				{
 					auto xunit = std::make_shared<xUnit>(arg.substr(7));
-					session().report_.push_back(xunit);
+					session.report_.push_back(xunit);
 				}
 #endif
 				else if (arg == "?" || arg == "-help")
 				{
 					std::string str;
 					str.append("LogiQA test runner.\n");
-					str.append("Usage: > " + session().test_runner_name_ + " [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n");
+					str.append("Usage: > " + session.test_runner_name_ + " [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n");
 					str.append("\n");
 					str.append("-shuffle : shuffle the tests before running them.\n");
 					str.append("-silent  : silence events. No console output.\n"); 
@@ -854,7 +861,7 @@ namespace logiqa
 					str.append("Pattern matching works on tags, name, and unique name (i.e \"testname[42]\") will match testname with param index 42.\n");
 					str.append("All tests except those matching patterns will be disabled/skipped.\n");
 					
-					session().event_->message(str);
+					session.event_->message(str);
 					return false;
 				}
 				else

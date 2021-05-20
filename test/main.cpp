@@ -1,4 +1,5 @@
-#include "../include/LogiQA.hpp"
+//#include "../include/LogiQA.hpp"
+#include <LogiQA.hpp>
 
 class custom_output_message : public logiqa::console
 {
@@ -13,15 +14,9 @@ public:
     }
 };
 
-
 // Introspective testing...
 LOGIQA_TEST_RUNNER 
 {
-    std::shared_ptr<custom_output_message> com = std::make_shared<custom_output_message>();
-    logiqa::session().event_.reset(new custom_output_message());
-
-    //EVENT(custom_output_message)    
-
-    
+	EVENT(custom_output_message)
     RUNALL 
 }

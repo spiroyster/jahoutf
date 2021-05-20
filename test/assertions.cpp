@@ -1,4 +1,4 @@
-#include "../include/LogiQA.hpp"
+#include <LogiQA.hpp>
 
 #include <utility>
 
@@ -306,7 +306,7 @@ LOGIQA_TEST(assert_lt_fail, "assertion assert_lt should_fail")
 struct assert_near_test_data
 {
 	assert_near_test_data(double value, double expected, double tolerance) : v_(value), e_(expected), t_(tolerance) {}
-	float v_, e_, t_;
+	double v_, e_, t_;
 };
 
 // Near
