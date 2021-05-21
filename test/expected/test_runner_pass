@@ -1,0 +1,15 @@
+Running 6 tests. (type "?" for help)  [2 tests are disabled.]
+|====================|
+
+. params : 1/1 assertions passed. (0ms)
+. params[1] : 1/1 assertions passed. (0ms)
+. params[2] : 1/1 assertions passed. (0ms)
+. params[3] : 1/1 assertions passed. (0ms)
+. params[4] : 1/1 assertions passed. (0ms)
+. pass : 1/1 assertions passed. (0ms)
+
+|====================|
+     Passed | 6 (6/6 assertions)
+      Total | 6 (0ms)
+
+ 2 test(s) skipped.

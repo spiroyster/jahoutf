@@ -126,6 +126,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 #define ASSERT_PASS REPORT_PASS("ASSERT_PASS", "")
 #define ASSERT_FAIL REPORT_FAIL("ASSERT_FAIL", "", "", "", "")
 #define ASSERT_EQ(x, y) if (x == y) { REPORT_PASS("ASSERT_EQ", "") } else { REPORT_FAIL("ASSERT_EQ", std::to_string(x), std::to_string(y), "", "") };
+#define ASSERT_EQ_STR(x, y) if (x.compare(y) == 0) { REPORT_PASS("ASSERT_EQ", "") } else { REPORT_FAIL("ASSERT_EQ", x, y, "", "") };
 #define ASSERT_LEQ(x, y) if (x <= y) { REPORT_PASS("ASSERT_LEQ", "") } else { REPORT_FAIL("ASSERT_LEQ", std::to_string(x), std::to_string(y), "", ""); };
 #define ASSERT_GEQ(x, y) if (x >= y) { REPORT_PASS("ASSERT_GEQ", "") } else { REPORT_FAIL("ASSERT_GEQ", std::to_string(x), std::to_string(y), "", ""); };
 #define ASSERT_LT(x, y) if (x < y) { REPORT_PASS("ASSERT_LT", "") } else { REPORT_FAIL("ASSERT_LT", std::to_string(x), std::to_string(y), "", ""); };
@@ -268,6 +269,7 @@ namespace logiqa
 			std::vector<std::shared_ptr<report_interface>> report_;
 			std::vector<std::string> tags_;
 			std::string test_runner_name_;
+			std::string test_runner_path_;
 
 			bool shuffle_ = false;
 			bool list_ = false;
@@ -823,7 +825,13 @@ namespace logiqa
 			auto itr = session.test_runner_name_.rfind('/');
 #endif
 			if (itr != 0 && itr != std::string::npos)
-				session.test_runner_name_ = session.test_runner_name_.substr(itr);
+			{
+				session.test_runner_path_ = session.test_runner_name_.substr(0, itr + 1); 
+				session.test_runner_name_ = session.test_runner_name_.substr(itr+1);
+			}
+			else
+				session.test_runner_name_ = "";
+				
 
 			for (int i = 1; i < argc; ++i)
 			{

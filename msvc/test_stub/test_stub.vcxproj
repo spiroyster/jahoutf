@@ -20,8 +20,8 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{AF2AB2F4-5C9D-43A6-ACB3-DE0560D41601}</ProjectGuid>
-    <RootNamespace>test</RootNamespace>
+    <ProjectGuid>{C00F9AA7-BFA1-4B9C-9535-5818D9FACB59}</ProjectGuid>
+    <RootNamespace>teststub</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -76,15 +76,13 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp14</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
     </Link>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>xcopy /s /i $(SolutionDir)..\test\expected $(OutDir)expected</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -129,13 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\LogiQA.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\test\assertions.cpp" />
-    <ClCompile Include="..\..\test\fixtures.cpp" />
-    <ClCompile Include="..\..\test\main.cpp" />
-    <ClCompile Include="..\..\test\test_runner.cpp" />
+    <ClCompile Include="..\..\test\stub.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

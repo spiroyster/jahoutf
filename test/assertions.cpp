@@ -310,13 +310,16 @@ struct assert_near_test_data
 };
 
 // Near
-LOGIQA_TEST_PARAMS(assert_near_pass, "assertion assert_near should_pass", 
-logiqa::param<assert_near_test_data>({
+
+
+logiqa::param<assert_near_test_data> assert_near_pass_values({
 	assert_near_test_data(0.1, 0.1, 0.0),
 	assert_near_test_data(0.1, 0.1, 0.0),
 	assert_near_test_data(0.1, 0.1, 0.0),
 	assert_near_test_data(0.1, 0.1, 0.0)
-}))
+	});
+
+LOGIQA_TEST_PARAMS(assert_near_pass, "assertion assert_near should_pass", assert_near_pass_values)
 {
 	const auto& p = logiqa_param();
 	ASSERT_NEAR(p.v_, p.e_, p.t_);

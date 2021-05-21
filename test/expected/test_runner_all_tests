@@ -1,0 +1,26 @@
+Running 8 tests. (type "?" for help) 
+|====================|
+
+
+  fail : 
+	d:\github\jahoutf\test\stub.cpp:13 ASSERT_FAIL()
+x fail : 1/1 assertions failed.
+
+  halt : 
+	d:\github\jahoutf\include\logiqa.hpp:308 {test_body} Halting test.
+! halt : 1 exceptions occured. 
+
+. params : 1/1 assertions passed. (0ms)
+. params[1] : 1/1 assertions passed. (0ms)
+. params[2] : 1/1 assertions passed. (0ms)
+. params[3] : 1/1 assertions passed. (0ms)
+. params[4] : 1/1 assertions passed. (0ms)
+. pass : 1/1 assertions passed. (0ms)
+
+|====================|
+     Passed | 6 (6/7 assertions)
+     Failed | 1 (1/7 assertions)
+ Exceptions | 1
+      Total | 8 (0ms)
+
+1 test(s) empty.
