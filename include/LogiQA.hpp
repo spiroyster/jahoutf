@@ -570,13 +570,13 @@ namespace logiqa
 				message("\nx "); red(header_string(test)); message(" : "); message(std::to_string(test.logiqa_result_fails().size()) + "/" + std::to_string(test.logiqa_result_total()) + " assertions failed.");
 			}
 		}
-		virtual void suite_start(const test_list& tests_to_run, const _::instance& inst)
+		virtual void suite_start(const test_list& tests_to_run)
 		{
 			message("Running " + std::to_string(tests_to_run.size()) + " tests. (type \"?\" for help) ");
 			//if (session().shuffle_)
-			if (inst.shuffle_)
+			if (session().shuffle_)
 				cyan(" [Shuffle] ");
-			unsigned int skipped = static_cast<unsigned int>(inst.tests_.size() - tests_to_run.size());
+			unsigned int skipped = static_cast<unsigned int>(session().tests_.size() - tests_to_run.size());
 			if (skipped)
 				yellow(" [" + std::to_string(skipped) + " tests are disabled.]");
 			message("\n|====================|\n");
@@ -820,7 +820,7 @@ namespace logiqa
 			auto itr = session.test_runner_name_.rfind('\\');
 #endif
 #ifdef LOGIQA_NIX	
-			auto itr = session().test_runner_name_.rfind('/');
+			auto itr = session.test_runner_name_.rfind('/');
 #endif
 			if (itr != 0 && itr != std::string::npos)
 				session.test_runner_name_ = session.test_runner_name_.substr(itr);
