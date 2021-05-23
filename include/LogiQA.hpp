@@ -19,6 +19,8 @@
 #define LOGIQA_INCLUDE_DEFAULT_XUNIT
 #endif
 
+// LOGIQA_CONSOLE_COLOUR_DISABLED
+
 // Check compiler...
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define LOGIQA_WIN 1
@@ -28,8 +30,8 @@
 #define LOGIQA_ANSI 1
 #endif
 
-// Macros defining the tests...
 
+// Macros defining the tests...
 
 #define LOGIQA_TEST(name, tags) namespace logiqa { namespace tests { namespace name \
 { \
@@ -126,7 +128,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 #define ASSERT_PASS REPORT_PASS("ASSERT_PASS", "")
 #define ASSERT_FAIL REPORT_FAIL("ASSERT_FAIL", "", "", "", "")
 #define ASSERT_EQ(x, y) if (x == y) { REPORT_PASS("ASSERT_EQ", "") } else { REPORT_FAIL("ASSERT_EQ", std::to_string(x), std::to_string(y), "", "") };
-#define ASSERT_EQ_STR(x, y) if (x.compare(y) == 0) { REPORT_PASS("ASSERT_EQ", "") } else { REPORT_FAIL("ASSERT_EQ", x, y, "", "") };
+#define ASSERT_EQ_STR(x, y) if (x.compare(y) == 0) { REPORT_PASS("ASSERT_EQ_STR", "") } else { REPORT_FAIL("ASSERT_EQ_STR", x, y, "", "") };
 #define ASSERT_LEQ(x, y) if (x <= y) { REPORT_PASS("ASSERT_LEQ", "") } else { REPORT_FAIL("ASSERT_LEQ", std::to_string(x), std::to_string(y), "", ""); };
 #define ASSERT_GEQ(x, y) if (x >= y) { REPORT_PASS("ASSERT_GEQ", "") } else { REPORT_FAIL("ASSERT_GEQ", std::to_string(x), std::to_string(y), "", ""); };
 #define ASSERT_LT(x, y) if (x < y) { REPORT_PASS("ASSERT_LT", "") } else { REPORT_FAIL("ASSERT_LT", std::to_string(x), std::to_string(y), "", ""); };
@@ -453,7 +455,17 @@ namespace logiqa
 	{
 	public:
 
-#ifdef LOGIQA_ANSI
+#ifdef LOGIQA_CONSOLE_COLOUR_DISABLED
+		void black(const std::string& msg) { std::cout << msg; }
+		void red(const std::string& msg) { std::cout << msg; }
+		void green(const std::string& msg) { std::cout << msg; }
+		void yellow(const std::string& msg) { std::cout << msg; }
+		void blue(const std::string& msg) { std::cout << msg; }
+		void magenta(const std::string& msg) { std::cout << msg; }
+		void cyan(const std::string& msg) { std::cout << msg; }
+		void white(const std::string& msg) { std::cout << msg; }
+		void inverse(const std::string& msg) { std::cout << msg; }
+#elif LOGIQA_ANSI
 		void black(const std::string& msg) { std::cout << std::string("\033[1;30m" + msg + "\033[0m"); }
 		void red(const std::string& msg) { std::cout << std::string("\033[1;31m" + msg + "\033[0m"); }
 		void green(const std::string& msg) { std::cout << std::string("\033[1;32m" + msg + "\033[0m"); }

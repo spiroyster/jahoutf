@@ -1,0 +1,12 @@
+Running 1 tests. (type "?" for help)  [7 tests are disabled.]
+|====================|
+
+
+  fail : 
+	test/test_stub.cpp:15 ASSERT_FAIL()
+x fail : 1/1 assertions failed.
+
+     Failed | 1 (1/1 assertions)
+      Total | 1 (0ms)
+
+ 7 test(s) skipped.

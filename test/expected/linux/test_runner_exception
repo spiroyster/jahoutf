@@ -1,0 +1,14 @@
+Running 1 tests. (type "?" for help)  [7 tests are disabled.]
+|====================|
+
+
+  halt : 
+	include/LogiQA.hpp:310 {test_body} Halting test.
+! halt : 1 exceptions occured. 
+
+
+ Exceptions | 1
+      Total | 1 (0ms)
+
+1 test(s) empty.
+ 7 test(s) skipped.

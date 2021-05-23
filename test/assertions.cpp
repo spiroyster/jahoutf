@@ -303,8 +303,9 @@ LOGIQA_TEST(assert_lt_fail, "assertion assert_lt should_fail")
 	ASSERT_LT(2.0, 1)
 }
 
-struct assert_near_test_data
+class assert_near_test_data
 {
+public:
 	assert_near_test_data(double value, double expected, double tolerance) : v_(value), e_(expected), t_(tolerance) {}
 	double v_, e_, t_;
 };

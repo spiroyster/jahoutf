@@ -13,51 +13,100 @@ struct cmd_stub_result
     int status_;
 };
 
-cmd_stub_result cmd_stub(const std::string& args)
+
+
+void file_write(const std::string& filename, const std::string& content)
 {
-    std::string out_file(logiqa::session().test_runner_path_ + "stub_out");
-    std::string err_file(logiqa::session().test_runner_path_ + "stub_err");
-
-	std::string cmd = logiqa::session().test_runner_path_ + "test_stub " + args + " > " + out_file +" 2> " + err_file;
-    
-    const auto status = std::system(cmd.c_str());
-
-    std::ifstream out_stream(out_file.c_str());
-    std::ifstream err_stream(err_file.c_str());
-
-    if (!out_stream)
-        throw std::runtime_error("Unable to open " + out_file);
-    if (!err_stream)
-        throw std::runtime_error("Unable to open " + err_file);
-        
-	std::ostringstream out_syntax, err_syntax;
-	out_syntax << out_stream.rdbuf();
-	err_syntax << err_stream.rdbuf();
-	
-	//err_syntax;
-    std::remove(out_file.c_str());
-    std::remove(err_file.c_str());
-
-    return cmd_stub_result(out_syntax.str(), err_syntax.str(), status);
+    std::ofstream file(filename.c_str());
+    if (!file)
+		throw std::runtime_error("Unable to open file for output " + filename);
+	file << content;
 }
 
-std::string cmd_stub_expected(const std::string& filename)
+std::string file_read(const std::string& filename)
 {
-	std::ifstream file(filename.c_str());
+    std::ifstream file(filename.c_str());
 	if (!file)
-		throw std::runtime_error("Unable to open expected file " + filename);
+		throw std::runtime_error("Unable to open file for input " + filename);
 	std::ostringstream syntax;
 	syntax << file.rdbuf();
 	return syntax.str();
 }
 
+cmd_stub_result invoke(const std::string& cmd, const std::string& args, const std::string& out_file, const std::string& err_file)
+{
+	std::string cmd_to_call = logiqa::session().test_runner_path_ + "test_stub " + args + " > " + out_file +" 2> " + err_file;
+    const auto status = std::system(cmd_to_call.c_str());
+    if (status != 0)
+        throw std::runtime_error("Cmd returned status " + std::to_string(status));
+    return cmd_stub_result(file_read(out_file), file_read(err_file), status);
+}
+
+std::string expected_path(const std::string& name)
+{
+#ifdef LOGIQA_NIX
+    return logiqa::session().test_runner_path_ + "expected/" + name;
+#endif
+#ifdef LOGIQA_WIN
+    return logiqa::session().test_runner_path_ + name + "\\";
+#endif
+}
+
+std::string result_path(const std::string& name)
+{
+#ifdef LOGIQA_NIX
+    return logiqa::session().test_runner_path_ + "result/" + name;
+#endif
+#ifdef LOGIQA_WIN
+    return logiqa::session().test_runner_path_ + name + "\\";
+#endif
+}
+
+
 // Test runner invokes, and checks output...
-LOGIQA_TEST(test_runner_no_tests, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("x").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_all_tests, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_about, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("?").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_list, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("-list").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_tags, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("-tags").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_list_tags, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("-list -tags").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_pass, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("pass").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_fail, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("fail").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
-LOGIQA_TEST(test_runner_exception, "test_runner should_pass") { ASSERT_EQ_STR(cmd_stub("exception").out_, cmd_stub_expected(session().test_runner_path_ + "expected\\" + logiqa_name())) }
+LOGIQA_TEST(test_runner_no_tests, "test_runner should_pass")  
+{ 
+    auto result = invoke("test_stub", "x", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+
+LOGIQA_TEST(test_runner_all_tests, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_about, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "?", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_list, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "-list", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_tags, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "-tags", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_list_tags, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "-list -tags", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_pass, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "pass", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_fail, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "fail", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
+LOGIQA_TEST(test_runner_exception, "test_runner should_pass") 
+{ 
+    auto result = invoke("test_stub", "exception", expected_path(logiqa_name()), result_path(logiqa_name()));
+    ASSERT_EQ_STR(result.out_, file_read(expected_path(logiqa_name())))
+}
