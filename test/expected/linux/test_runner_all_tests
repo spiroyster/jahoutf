@@ -3,21 +3,21 @@ Running 8 tests. (type "?" for help)
 
 
   fail : 
-	test/test_stub.cpp:15 ASSERT_FAIL()
-x fail : 1/1 assertions failed.
+	[1;36mtest/test_stub.cpp:[0m[1;33m12[0m ASSERT_FAIL()
+x [1;31mfail[0m : 1/1 assertions failed.
 
   halt : 
-	include/LogiQA.hpp:310 {test_body} Halting test.
-! halt : 1 exceptions occured. 
+	[1;36minclude/LogiQA.hpp:[0m[1;33m310[0m [1;35m{[0m[1;33mtest_body[0m[1;35m}[0m[1;35m Halting test.[0m
+! [1;35mhalt[0m : 1 exceptions occured. 
 
-. params : 1/1 assertions passed. (0ms)
-. params[1] : 1/1 assertions passed. (0ms)
-. params[2] : 1/1 assertions passed. (0ms)
-. params[3] : 1/1 assertions passed. (0ms)
-. params[4] : 1/1 assertions passed. (0ms)
-. pass : 1/1 assertions passed. (0ms)
+. [1;32mparams[0m : 1/1 assertions passed. (0ms)
+. [1;32mparams[1][0m : 1/1 assertions passed. (0ms)
+. [1;32mparams[2][0m : 1/1 assertions passed. (0ms)
+. [1;32mparams[3][0m : 1/1 assertions passed. (0ms)
+. [1;32mparams[4][0m : 1/1 assertions passed. (0ms)
+. [1;32mpass[0m : 1/1 assertions passed. (0ms)
 
-|====================|
+|[1;32m==================[0m[1;31m==[0m|
      Passed | 6 (6/7 assertions)
      Failed | 1 (1/7 assertions)
  Exceptions | 1

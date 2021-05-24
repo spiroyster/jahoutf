@@ -1,7 +1,10 @@
 #!/bin/bash
 
+# Prep the results dir...
 rm -r ./expected/linux
 mkdir ./expected/linux
+
+# Generate the output from the test stub...
 ../bin/test_stub x > expected/linux/test_runner_no_tests
 ../bin/test_stub > expected/linux/test_runner_all_tests
 ../bin/test_stub ? > expected/linux/test_runner_about
@@ -12,4 +15,7 @@ mkdir ./expected/linux
 ../bin/test_stub -list -tags > expected/linux/test_runner_list_tags
 ../bin/test_stub -tags > expected/linux/test_runner_tags
 
-
+# Generate the output for the individual pass, fails, and exceptions...
+../bin/test_stages should_pass > expected/linux/should_pass
+../bin/test_stages should_fail > expected/linux/should_fail
+../bin/test_stages should_throw > expected/linux/should_throw

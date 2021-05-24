@@ -1,4 +1,5 @@
-exception
-fail
-params
-pass
+[1;36mexception
+[0m[1;36mfail
+[0m[1;36mparams
+[0m[1;36mpass
+[0m

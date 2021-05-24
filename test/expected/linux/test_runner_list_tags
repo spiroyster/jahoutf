@@ -1,4 +1,4 @@
-fail [ fail ]
-halt [ exception ]
-params [ params pass ]
-pass [ pass ]
+fail [[1;36m fail [0m]
+halt [[1;36m exception [0m]
+params [[1;36m params pass [0m]
+pass [[1;36m pass [0m]

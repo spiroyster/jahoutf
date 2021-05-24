@@ -1,9 +1,9 @@
-Running 0 tests. (type "?" for help)  [8 tests are disabled.]
+Running 0 tests. (type "?" for help) [1;33m [8 tests are disabled.][0m
 |====================|
 
 
   No Tests run.
 |====================|
       Total | 0 (0ms)
-
- 8 test(s) skipped.
+[1;33m
+ 8 test(s) skipped.[0m

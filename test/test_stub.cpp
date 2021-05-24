@@ -1,9 +1,6 @@
-#define LOGIQA_CONSOLE_COLOUR_DISABLED 1
-
 #include <LogiQA.hpp>
 
 LOGIQA_TEST_RUNNER { RUNALL }
-
 
 LOGIQA_TEST(pass, "pass")
 {
