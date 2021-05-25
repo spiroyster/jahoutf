@@ -1,50 +1,50 @@
 Running 41 tests. (type "?" for help) [1;33m [17 tests are disabled.][0m
 |====================|
 
-. [1;32massert_eq_pass[0m : 6/6 assertions passed. (0ms)
-. [1;32massert_geq_pass[0m : 26/26 assertions passed. (0ms)
-. [1;32massert_gt_pass[0m : 15/15 assertions passed. (0ms)
-. [1;32massert_leq_pass[0m : 26/26 assertions passed. (0ms)
-. [1;32massert_lt_pass[0m : 15/15 assertions passed. (0ms)
-. [1;32massert_near_pass[0m : 1/1 assertions passed. (0ms)
-. [1;32massert_near_pass[1][0m : 1/1 assertions passed. (0ms)
-. [1;32massert_near_pass[2][0m : 1/1 assertions passed. (0ms)
-. [1;32massert_near_pass[3][0m : 1/1 assertions passed. (0ms)
-. [1;32massert_pass[0m : 3/3 assertions passed. (0ms)
-. [1;32massert_pass_pass[0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_method[0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_method[1][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_method[2][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_method[3][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_method[4][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_method[5][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_setup[0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_setup[1][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_setup[2][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_setup[3][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_setup[4][0m : 1/1 assertions passed. (0ms)
-. [1;32mfixture_params_setup[5][0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture[0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method[0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method_params[0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method_params[1][0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method_params[2][0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method_params[3][0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method_params[4][0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_method_params[5][0m : 1/1 assertions passed. (0ms)
-. [1;32msingle_fixture_setup[0m : 1/1 assertions passed. (0ms)
-. [1;32mtest_runner_about[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_all_tests[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_exception[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_fail[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_list[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_list_tags[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_no_tests[0m : 1/1 assertions passed. (4294967288ms)
-. [1;32mtest_runner_pass[0m : 1/1 assertions passed. (4294967284ms)
-. [1;32mtest_runner_tags[0m : 1/1 assertions passed. (4294967287ms)
+. [1;32massert_eq_pass[0m : 6/6 assertions passed. 
+. [1;32massert_geq_pass[0m : 26/26 assertions passed. 
+. [1;32massert_gt_pass[0m : 15/15 assertions passed. 
+. [1;32massert_leq_pass[0m : 26/26 assertions passed. 
+. [1;32massert_lt_pass[0m : 15/15 assertions passed. 
+. [1;32massert_near_pass[0m : 1/1 assertions passed. 
+. [1;32massert_near_pass[1][0m : 1/1 assertions passed. 
+. [1;32massert_near_pass[2][0m : 1/1 assertions passed. 
+. [1;32massert_near_pass[3][0m : 1/1 assertions passed. 
+. [1;32massert_pass[0m : 3/3 assertions passed. 
+. [1;32massert_pass_pass[0m : 1/1 assertions passed. 
+. [1;32mfixture_params_method[0m : 1/1 assertions passed. 
+. [1;32mfixture_params_method[1][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_method[2][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_method[3][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_method[4][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_method[5][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_setup[0m : 1/1 assertions passed. 
+. [1;32mfixture_params_setup[1][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_setup[2][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_setup[3][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_setup[4][0m : 1/1 assertions passed. 
+. [1;32mfixture_params_setup[5][0m : 1/1 assertions passed. 
+. [1;32msingle_fixture[0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method[0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method_params[0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method_params[1][0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method_params[2][0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method_params[3][0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method_params[4][0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_method_params[5][0m : 1/1 assertions passed. 
+. [1;32msingle_fixture_setup[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_about[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_all_tests[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_exception[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_fail[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_list[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_list_tags[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_no_tests[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_pass[0m : 1/1 assertions passed. 
+. [1;32mtest_runner_tags[0m : 1/1 assertions passed. 
 
 |[1;32m====================[0m[1;31m[0m|
      Passed | 41 (126/126 assertions)
-      Total | 41 (4294967219ms)
+      Total | 41 
 [1;33m
  17 test(s) skipped.[0m

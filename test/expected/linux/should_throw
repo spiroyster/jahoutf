@@ -37,7 +37,7 @@ Running 6 tests. (type "?" for help) [1;33m [52 tests are disabled.][0m
      Passed | 2 (2/3 assertions)
      Failed | 1 (1/3 assertions)
  Exceptions | 6
-      Total | 9 (0ms)
+      Total | 9 
 
 3 test(s) empty.[1;33m
  52 test(s) skipped.[0m

@@ -114,7 +114,7 @@ x [1;31massert_leq_fail[0m : 15/15 assertions failed.
 	[1;36mtest/assertions.cpp:[0m[1;33m302[0m ASSERT_LT(2.000000, 1.000000)
 	[1;36mtest/assertions.cpp:[0m[1;33m303[0m ASSERT_LT(2.000000, 1)
 x [1;31massert_lt_fail[0m : 26/26 assertions failed.
-. [1;32massert_near_fail[0m : 1/1 assertions passed. (0ms)
+. [1;32massert_near_fail[0m : 1/1 assertions passed. 
 
   assert_near_fail[1] : 
 	[1;36mtest/assertions.cpp:[0m[1;33m338[0m ASSERT_NEAR(10.100000, 0.100000) tolerance 1.000000
@@ -131,6 +131,6 @@ x [1;31massert_near_fail[3][0m : 1/1 assertions failed.
 |[1;32m==[0m[1;31m==================[0m|
      Passed | 1 (1/96 assertions)
      Failed | 10 (95/96 assertions)
-      Total | 11 (0ms)
+      Total | 11 
 [1;33m
  47 test(s) skipped.[0m

@@ -524,7 +524,7 @@ namespace logiqa
 		}
 		virtual void duration(unsigned int d) 
 		{ 
-			message("(" + std::to_string(d) + "ms)"); 
+			//message("(" + std::to_string(d) + "ms)"); 
 		}
 		
 		void results_bar(unsigned int successes, unsigned int failures)

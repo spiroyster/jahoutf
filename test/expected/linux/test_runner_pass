@@ -1,15 +1,15 @@
 Running 6 tests. (type "?" for help) [1;33m [2 tests are disabled.][0m
 |====================|
 
-. [1;32mparams[0m : 1/1 assertions passed. (0ms)
-. [1;32mparams[1][0m : 1/1 assertions passed. (0ms)
-. [1;32mparams[2][0m : 1/1 assertions passed. (0ms)
-. [1;32mparams[3][0m : 1/1 assertions passed. (0ms)
-. [1;32mparams[4][0m : 1/1 assertions passed. (0ms)
-. [1;32mpass[0m : 1/1 assertions passed. (0ms)
+. [1;32mparams[0m : 1/1 assertions passed. 
+. [1;32mparams[1][0m : 1/1 assertions passed. 
+. [1;32mparams[2][0m : 1/1 assertions passed. 
+. [1;32mparams[3][0m : 1/1 assertions passed. 
+. [1;32mparams[4][0m : 1/1 assertions passed. 
+. [1;32mpass[0m : 1/1 assertions passed. 
 
 |[1;32m====================[0m[1;31m[0m|
      Passed | 6 (6/6 assertions)
-      Total | 6 (0ms)
+      Total | 6 
 [1;33m
  2 test(s) skipped.[0m
