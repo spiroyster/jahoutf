@@ -1,0 +1,12 @@
+LogiQA test runner.
+Usage: > test_stub.exe [-silent] [-list] [-shuffle] [-xunit="filename.xml"] [?] test1 test2 ...
+
+-shuffle : shuffle the tests before running them.
+-silent  : silence events. No console output.
+-xunit   : specify an xml filename to report xUnit to.
+-list    : list the tests in this test program.
+-tags    : list the tags.
+
+Using -list and -tags together, will list the tests and associated tags for each test.
+Pattern matching works on tags, name, and unique name (i.e "testname[42]") will match testname with param index 42.
+All tests except those matching patterns will be disabled/skipped.

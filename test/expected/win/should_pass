@@ -1,0 +1,78 @@
+Running 41 tests. (type "?" for help)  [17 tests are disabled.]
+|====================|
+
+. assert_eq_pass : 6/6 assertions passed. 
+. assert_geq_pass : 26/26 assertions passed. 
+. assert_gt_pass : 15/15 assertions passed. 
+. assert_leq_pass : 26/26 assertions passed. 
+. assert_lt_pass : 15/15 assertions passed. 
+. assert_near_pass : 1/1 assertions passed. 
+. assert_near_pass[1] : 1/1 assertions passed. 
+. assert_near_pass[2] : 1/1 assertions passed. 
+. assert_near_pass[3] : 1/1 assertions passed. 
+. assert_pass : 3/3 assertions passed. 
+. assert_pass_pass : 1/1 assertions passed. 
+. fixture_params_method : 1/1 assertions passed. 
+. fixture_params_method[1] : 1/1 assertions passed. 
+. fixture_params_method[2] : 1/1 assertions passed. 
+. fixture_params_method[3] : 1/1 assertions passed. 
+. fixture_params_method[4] : 1/1 assertions passed. 
+. fixture_params_method[5] : 1/1 assertions passed. 
+. fixture_params_setup : 1/1 assertions passed. 
+. fixture_params_setup[1] : 1/1 assertions passed. 
+. fixture_params_setup[2] : 1/1 assertions passed. 
+. fixture_params_setup[3] : 1/1 assertions passed. 
+. fixture_params_setup[4] : 1/1 assertions passed. 
+. fixture_params_setup[5] : 1/1 assertions passed. 
+. single_fixture : 1/1 assertions passed. 
+. single_fixture_method : 1/1 assertions passed. 
+. single_fixture_method_params : 1/1 assertions passed. 
+. single_fixture_method_params[1] : 1/1 assertions passed. 
+. single_fixture_method_params[2] : 1/1 assertions passed. 
+. single_fixture_method_params[3] : 1/1 assertions passed. 
+. single_fixture_method_params[4] : 1/1 assertions passed. 
+. single_fixture_method_params[5] : 1/1 assertions passed. 
+. single_fixture_setup : 1/1 assertions passed. 
+
+  test_runner_about : 
+	d:\github\jahoutf\test\test_runner.cpp:19 ASSERT_EQ_STR(LogiQA test runner.
+Usage: > test_stub [-silent] [-list] [-shuffle] [-xunit="filename.xml"] [?] test1 test2 ...
+
+-shuffle : shuffle the tests before running them.
+-silent  : silence events. No console output.
+-xunit   : specify an xml filename to report xUnit to.
+-list    : list the tests in this test program.
+-tags    : list the tags.
+
+Using -list and -tags together, will list the tests and associated tags for each test.
+Pattern matching works on tags, name, and unique name (i.e "testname[42]") will match testname with param index 42.
+All tests except those matching patterns will be disabled/skipped.
+, LogiQA test runner.
+Usage: > test_stub.exe [-silent] [-list] [-shuffle] [-xunit="filename.xml"] [?] test1 test2 ...
+
+-shuffle : shuffle the tests before running them.
+-silent  : silence events. No console output.
+-xunit   : specify an xml filename to report xUnit to.
+-list    : list the tests in this test program.
+-tags    : list the tags.
+
+Using -list and -tags together, will list the tests and associated tags for each test.
+Pattern matching works on tags, name, and unique name (i.e "testname[42]") will match testname with param index 42.
+All tests except those matching patterns will be disabled/skipped.
+)
+x test_runner_about : 1/1 assertions failed.
+. test_runner_all_tests : 1/1 assertions passed. 
+. test_runner_exception : 1/1 assertions passed. 
+. test_runner_fail : 1/1 assertions passed. 
+. test_runner_list : 1/1 assertions passed. 
+. test_runner_list_tags : 1/1 assertions passed. 
+. test_runner_no_tests : 1/1 assertions passed. 
+. test_runner_pass : 1/1 assertions passed. 
+. test_runner_tags : 1/1 assertions passed. 
+
+|====================|
+     Passed | 40 (125/126 assertions)
+     Failed | 1 (1/126 assertions)
+      Total | 41 
+
+ 17 test(s) skipped.

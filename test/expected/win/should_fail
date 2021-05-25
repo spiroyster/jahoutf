@@ -1,0 +1,137 @@
+Running 11 tests. (type "?" for help)  [47 tests are disabled.]
+|====================|
+
+
+  assert_eq_fail : 
+	d:\github\jahoutf\test\assertions.cpp:36 ASSERT_EQ(1, 0)
+	d:\github\jahoutf\test\assertions.cpp:37 ASSERT_EQ(1.000000, 0)
+	d:\github\jahoutf\test\assertions.cpp:38 ASSERT_EQ(1, 0)
+	d:\github\jahoutf\test\assertions.cpp:39 ASSERT_EQ(1, 0)
+	d:\github\jahoutf\test\assertions.cpp:40 ASSERT_EQ(1, 0)
+	d:\github\jahoutf\test\assertions.cpp:41 ASSERT_EQ(0, 1)
+x assert_eq_fail : 6/6 assertions failed.
+
+  assert_fail : 
+	d:\github\jahoutf\test\assertions.cpp:19 ASSERT_EQ(0, 1)
+	d:\github\jahoutf\test\assertions.cpp:20 ASSERT_EQ(0, 1)
+	d:\github\jahoutf\test\assertions.cpp:21 ASSERT_EQ(0.000000, 1)
+x assert_fail : 3/3 assertions failed.
+
+  assert_fail_fail : 
+	d:\github\jahoutf\test\assertions.cpp:6 ASSERT_FAIL()
+x assert_fail_fail : 1/1 assertions failed.
+
+  assert_geq_fail : 
+	d:\github\jahoutf\test\assertions.cpp:152 ASSERT_GEQ(-2, -1)
+	d:\github\jahoutf\test\assertions.cpp:153 ASSERT_GEQ(-2.000000, -1)
+	d:\github\jahoutf\test\assertions.cpp:154 ASSERT_GEQ(-2.000000, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:155 ASSERT_GEQ(-2, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:158 ASSERT_GEQ(-1, 0)
+	d:\github\jahoutf\test\assertions.cpp:159 ASSERT_GEQ(-1.000000, 0)
+	d:\github\jahoutf\test\assertions.cpp:160 ASSERT_GEQ(-1.000000, 0.000000)
+	d:\github\jahoutf\test\assertions.cpp:163 ASSERT_GEQ(0, 1)
+	d:\github\jahoutf\test\assertions.cpp:164 ASSERT_GEQ(0.000000, 1)
+	d:\github\jahoutf\test\assertions.cpp:165 ASSERT_GEQ(0.000000, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:166 ASSERT_GEQ(0, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:169 ASSERT_GEQ(1, 2)
+	d:\github\jahoutf\test\assertions.cpp:170 ASSERT_GEQ(1.000000, 2)
+	d:\github\jahoutf\test\assertions.cpp:171 ASSERT_GEQ(1.000000, 2.000000)
+	d:\github\jahoutf\test\assertions.cpp:172 ASSERT_GEQ(1, 2.000000)
+x assert_geq_fail : 15/15 assertions failed.
+
+  assert_gt_fail : 
+	d:\github\jahoutf\test\assertions.cpp:205 ASSERT_GT(0, 0)
+	d:\github\jahoutf\test\assertions.cpp:206 ASSERT_GT(0, 0.000000)
+	d:\github\jahoutf\test\assertions.cpp:207 ASSERT_GT(0.000000, 0)
+	d:\github\jahoutf\test\assertions.cpp:208 ASSERT_GT(-1, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:209 ASSERT_GT(-1, -1)
+	d:\github\jahoutf\test\assertions.cpp:210 ASSERT_GT(-1.000000, -1)
+	d:\github\jahoutf\test\assertions.cpp:211 ASSERT_GT(-1.000000, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:212 ASSERT_GT(2.000000, 2)
+	d:\github\jahoutf\test\assertions.cpp:213 ASSERT_GT(2, 2.000000)
+	d:\github\jahoutf\test\assertions.cpp:214 ASSERT_GT(2, 2)
+	d:\github\jahoutf\test\assertions.cpp:215 ASSERT_GT(2.000000, 2.000000)
+	d:\github\jahoutf\test\assertions.cpp:218 ASSERT_GT(-2, -1)
+	d:\github\jahoutf\test\assertions.cpp:219 ASSERT_GT(-2.000000, -1)
+	d:\github\jahoutf\test\assertions.cpp:220 ASSERT_GT(-2.000000, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:221 ASSERT_GT(-2, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:224 ASSERT_GT(-1, 0)
+	d:\github\jahoutf\test\assertions.cpp:225 ASSERT_GT(-1.000000, 0)
+	d:\github\jahoutf\test\assertions.cpp:226 ASSERT_GT(-1.000000, 0.000000)
+	d:\github\jahoutf\test\assertions.cpp:229 ASSERT_GT(0, 1)
+	d:\github\jahoutf\test\assertions.cpp:230 ASSERT_GT(0.000000, 1)
+	d:\github\jahoutf\test\assertions.cpp:231 ASSERT_GT(0.000000, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:232 ASSERT_GT(0, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:235 ASSERT_GT(1, 2)
+	d:\github\jahoutf\test\assertions.cpp:236 ASSERT_GT(1.000000, 2)
+	d:\github\jahoutf\test\assertions.cpp:237 ASSERT_GT(1.000000, 2.000000)
+	d:\github\jahoutf\test\assertions.cpp:238 ASSERT_GT(1, 2.000000)
+x assert_gt_fail : 26/26 assertions failed.
+
+  assert_leq_fail : 
+	d:\github\jahoutf\test\assertions.cpp:87 ASSERT_LEQ(-1, -2)
+	d:\github\jahoutf\test\assertions.cpp:88 ASSERT_LEQ(-1, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:89 ASSERT_LEQ(-1.000000, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:90 ASSERT_LEQ(-1.000000, -2)
+	d:\github\jahoutf\test\assertions.cpp:93 ASSERT_LEQ(0, -1)
+	d:\github\jahoutf\test\assertions.cpp:94 ASSERT_LEQ(0, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:95 ASSERT_LEQ(0.000000, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:98 ASSERT_LEQ(-1, -2)
+	d:\github\jahoutf\test\assertions.cpp:99 ASSERT_LEQ(-1, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:100 ASSERT_LEQ(-1.000000, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:101 ASSERT_LEQ(-1.000000, -2)
+	d:\github\jahoutf\test\assertions.cpp:104 ASSERT_LEQ(2, 1)
+	d:\github\jahoutf\test\assertions.cpp:105 ASSERT_LEQ(2, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:106 ASSERT_LEQ(2.000000, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:107 ASSERT_LEQ(2.000000, 1)
+x assert_leq_fail : 15/15 assertions failed.
+
+  assert_lt_fail : 
+	d:\github\jahoutf\test\assertions.cpp:270 ASSERT_LT(0, 0)
+	d:\github\jahoutf\test\assertions.cpp:271 ASSERT_LT(0, 0.000000)
+	d:\github\jahoutf\test\assertions.cpp:272 ASSERT_LT(0.000000, 0)
+	d:\github\jahoutf\test\assertions.cpp:273 ASSERT_LT(-1, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:274 ASSERT_LT(-1, -1)
+	d:\github\jahoutf\test\assertions.cpp:275 ASSERT_LT(-1.000000, -1)
+	d:\github\jahoutf\test\assertions.cpp:276 ASSERT_LT(-1.000000, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:277 ASSERT_LT(2.000000, 2)
+	d:\github\jahoutf\test\assertions.cpp:278 ASSERT_LT(2, 2.000000)
+	d:\github\jahoutf\test\assertions.cpp:279 ASSERT_LT(2, 2)
+	d:\github\jahoutf\test\assertions.cpp:280 ASSERT_LT(2.000000, 2.000000)
+	d:\github\jahoutf\test\assertions.cpp:283 ASSERT_LT(-1, -2)
+	d:\github\jahoutf\test\assertions.cpp:284 ASSERT_LT(-1, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:285 ASSERT_LT(-1.000000, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:286 ASSERT_LT(-1.000000, -2)
+	d:\github\jahoutf\test\assertions.cpp:289 ASSERT_LT(0, -1)
+	d:\github\jahoutf\test\assertions.cpp:290 ASSERT_LT(0, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:291 ASSERT_LT(0.000000, -1.000000)
+	d:\github\jahoutf\test\assertions.cpp:294 ASSERT_LT(-1, -2)
+	d:\github\jahoutf\test\assertions.cpp:295 ASSERT_LT(-1, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:296 ASSERT_LT(-1.000000, -2.000000)
+	d:\github\jahoutf\test\assertions.cpp:297 ASSERT_LT(-1.000000, -2)
+	d:\github\jahoutf\test\assertions.cpp:300 ASSERT_LT(2, 1)
+	d:\github\jahoutf\test\assertions.cpp:301 ASSERT_LT(2, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:302 ASSERT_LT(2.000000, 1.000000)
+	d:\github\jahoutf\test\assertions.cpp:303 ASSERT_LT(2.000000, 1)
+x assert_lt_fail : 26/26 assertions failed.
+
+  assert_near_fail : 
+	d:\github\jahoutf\test\assertions.cpp:338 ASSERT_NEAR(0.000000, -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000) tolerance -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000
+x assert_near_fail : 1/1 assertions failed.
+
+  assert_near_fail[1] : 
+	d:\github\jahoutf\test\assertions.cpp:338 ASSERT_NEAR(0.000000, -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000) tolerance -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000
+x assert_near_fail[1] : 1/1 assertions failed.
+
+  assert_near_fail[2] : 
+	d:\github\jahoutf\test\assertions.cpp:338 ASSERT_NEAR(0.000000, -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000) tolerance -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000
+x assert_near_fail[2] : 1/1 assertions failed.
+
+  assert_near_fail[3] : 
+	d:\github\jahoutf\test\assertions.cpp:338 ASSERT_NEAR(0.000000, 0.000000) tolerance -1456815990147462891125136942359339382185244158826619267593931664968442323048246672764155341958241671875972237215762610409185128240974392406835200.000000
+x assert_near_fail[3] : 1/1 assertions failed.
+
+     Failed | 11 (96/96 assertions)
+      Total | 11 
+
+ 47 test(s) skipped.

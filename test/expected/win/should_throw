@@ -1,0 +1,43 @@
+Running 6 tests. (type "?" for help)  [52 tests are disabled.]
+|====================|
+
+
+  exception_test_body : 
+	d:\github\jahoutf\include\logiqa.hpp:310 {test_body} Test body exception.
+! exception_test_body : 1 exceptions occured. 
+
+
+  halt : 
+	d:\github\jahoutf\include\logiqa.hpp:310 {test_body} Halting test.
+! halt : 1 exceptions occured. 
+
+
+  halt_at_end : 
+	d:\github\jahoutf\include\logiqa.hpp:310 {test_body} Halting test.
+! halt_at_end : 1 exceptions occured. 
+
+
+  halt_at_start : 
+	d:\github\jahoutf\include\logiqa.hpp:310 {test_body} Halting test.
+! halt_at_start : 1 exceptions occured. 
+
+
+  setup_exception : 
+	d:\github\jahoutf\test\fixtures.cpp:68 {fixture_setup} Setup exception.
+	d:\github\jahoutf\test\fixtures.cpp:68 ASSERT_FAIL()
+! setup_exception : 1 exceptions occured. 
+
+
+  teardown_exception : 
+	d:\github\jahoutf\test\fixtures.cpp:76 {fixture_teardown} Teardown exception.
+! teardown_exception : 1 exceptions occured. 
+
+
+|====================|
+     Passed | 2 (2/3 assertions)
+     Failed | 1 (1/3 assertions)
+ Exceptions | 6
+      Total | 9 
+
+3 test(s) empty.
+ 52 test(s) skipped.

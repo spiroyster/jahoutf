@@ -52,7 +52,7 @@ static std::string expected_path(const std::string& name)
     return logiqa::session().test_runner_path_ + "expected/" + name;
 #endif
 #ifdef LOGIQA_WIN
-    return logiqa::session().test_runner_path_ + name + "\\";
+    return logiqa::session().test_runner_path_ + "expected\\" + name;
 #endif
 }
 
@@ -62,7 +62,7 @@ static std::string result_path(const std::string& name)
     return logiqa::session().test_runner_path_ + "result/" + name;
 #endif
 #ifdef LOGIQA_WIN
-    return logiqa::session().test_runner_path_ + name + "\\";
+    return logiqa::session().test_runner_path_ + "result\\" + name;
 #endif
 }
 

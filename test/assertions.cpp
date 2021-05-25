@@ -358,3 +358,4 @@ LOGIQA_TEST(halt_at_end, "halt should_throw")
 	ASSERT_FAIL
 }
 
+// ASSERT_EQ_STR

@@ -18,6 +18,12 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\test\test_main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\LogiQA.hpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{AF2AB2F4-5C9D-43A6-ACB3-DE0560D41601}</ProjectGuid>
@@ -83,8 +89,9 @@
       <SubSystem>Console</SubSystem>
     </Link>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>mkdir -p $(OutDir)result
+xcopy /s /i /y $(SolutionDir)..\test\expected\win $(OutDir)expected
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -128,15 +135,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\include\LogiQA.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\test\assertions.cpp" />
-    <ClCompile Include="..\..\test\fixtures.cpp" />
-    <ClCompile Include="..\..\test\main.cpp" />
-    <ClCompile Include="..\..\test\test_runner.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
