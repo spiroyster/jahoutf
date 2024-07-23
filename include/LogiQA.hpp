@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <chrono>
+#include <stdexcept>
 
 // Unless specified, by default include default console...
 #ifndef LOGIQA_DEFAULT_CONSOLE_EXCLUDE
