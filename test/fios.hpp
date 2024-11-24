@@ -1,7 +1,7 @@
 #ifndef LOGIQA_FIOS_HPP
 #define LOGIQA_FIOS_HPP
 
-#include <LogiQA.hpp>
+#include "..\include\LogiQA.hpp"
 #include <iostream>
 #include <fstream>
 

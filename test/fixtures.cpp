@@ -1,4 +1,4 @@
-#include <LogiQA.hpp>
+#include "..\include\LogiQA.hpp"
 
 class foo : public logiqa::fixture { public: int x_ = 42; };
 

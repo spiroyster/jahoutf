@@ -1,4 +1,4 @@
-#include <LogiQA.hpp>
+#include "..\include\LogiQA.hpp"
 #include "fios.hpp"
 
 class custom_output_message : public logiqa::console

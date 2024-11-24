@@ -1,5 +1,5 @@
 # jahoutf
-Just another header only unit testing framework. xUnit style single header only test framework featuring:
+Just another header only unit testing framework...
 
 * Lightweight
 * Header only
@@ -11,7 +11,14 @@ Just another header only unit testing framework. xUnit style single header only 
 * Customisable output and reporting.
 * Test Shuffling
 
-## Example
+[Creating Tests](#creating-tests)
+
+[Running Tests](#running-tests)
+
+[Customisation](#customising)
+
+
+## Quick Example
 Write a test program with a single test...
 
     // Only need to include jahoutf.hpp

@@ -1,4 +1,4 @@
-#include <LogiQA.hpp>
+#include "..\include\LogiQA.hpp"
 
 #include "fios.hpp"
 

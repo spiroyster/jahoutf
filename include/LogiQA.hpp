@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2024 spiroyster
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #ifndef LOGIQA_HPP
 #define LOGIQA_HPP
 
@@ -10,19 +34,7 @@
 #include <chrono>
 #include <stdexcept>
 
-// Unless specified, by default include default console...
-#ifndef LOGIQA_DEFAULT_CONSOLE_EXCLUDE
-#define LOGIQA_INCLUDE_DEFAULT_CONSOLE
-#endif
-
-// Unless specified, by default include default xUnit...
-#ifndef LOGIQA_DEFAULT_XUNIT_EXCLUDE
-#define LOGIQA_INCLUDE_DEFAULT_XUNIT
-#endif
-
-// LOGIQA_CONSOLE_COLOUR_DISABLED
-
-// Check compiler...
+// Check compiler we are using...
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define LOGIQA_WIN 1
 #include <Windows.h>
@@ -31,9 +43,24 @@
 #define LOGIQA_ANSI 1
 #endif
 
+// Unless specified, by default include default console...
+// To not use default console output, define LOGIQA_DEFAULT_CONSOLE_EXCLUDE before including logiQA.hpp
+#ifndef LOGIQA_DEFAULT_CONSOLE_EXCLUDE
+#define LOGIQA_INCLUDE_DEFAULT_CONSOLE
+#endif
 
-// Macros defining the tests...
+// Unless specified, by default include default xUnit...
+// To not use default console output, define LOGIQA_DEFAULT_XUNIT_EXCLUDE before including logiQA.hpp
+#ifndef LOGIQA_DEFAULT_XUNIT_EXCLUDE
+#define LOGIQA_INCLUDE_DEFAULT_XUNIT
+#endif
 
+/// Macros
+///
+/// Macros are used extensively in LogiQA (syntactic sugar) to reduce code size and ease reading. All four different types of tests
+/// test cases, test fixtures, text values and test fixture values, use macros and they simply wrap the test interface and allow the body to be written by the user.
+
+// Test Case...
 #define LOGIQA_TEST(name, tags) namespace logiqa { namespace tests { namespace name \
 { \
 	class test_runner_wrapper : public logiqa::test \
@@ -46,7 +73,7 @@
 } } }\
 void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 
-// Test array of parameter values...
+// Test values (parameters, array of values)...
 #define LOGIQA_TEST_PARAMS(name, tags, params) namespace logiqa { namespace tests { namespace name \
 { \
 	class test_runner_wrapper : public logiqa::test \
@@ -68,7 +95,7 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 } } }\
 void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 
-// Test a single fixture
+// Test fixture...
 #define LOGIQA_TEST_FIXTURE(name, tags, fixture) namespace logiqa { namespace tests { namespace name \
 { \
 	class test_runner_wrapper : public logiqa::test, public fixture \
@@ -120,12 +147,12 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 } } }\
 void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 
-
-// Test body assertions...
+// Test body operations... These can be used during a test to denote a pass, fail or to prematurely halt a test.
 #define TEST_HALT throw std::runtime_error("Halting test.");
 #define REPORT_PASS(assert_type, msg) logiqa_report_pass(__FILE__, __LINE__, assert_type, msg);
 #define REPORT_FAIL(assert_type, value, expected, tolerance, msg) logiqa_report_fail(__FILE__, __LINE__, assert_type, value, expected, tolerance, msg);
 
+// Test body assertions... Tests can contain any number of assertions within a single test case. For a test to pass, all assertions must pass.
 #define ASSERT_PASS REPORT_PASS("ASSERT_PASS", "")
 #define ASSERT_FAIL REPORT_FAIL("ASSERT_FAIL", "", "", "", "")
 #define ASSERT_EQ(x, y) if (x == y) { REPORT_PASS("ASSERT_EQ", "") } else { REPORT_FAIL("ASSERT_EQ", std::to_string(x), std::to_string(y), "", "") };
@@ -137,8 +164,9 @@ void logiqa::tests::name::test_runner_wrapper::logiqa_body()
 #define ASSERT_NEAR(x, y, e) if (abs(y-x) <= e) { REPORT_PASS("ASSERT_NEAR", "") } else { REPORT_FAIL("ASSERT_NEAR", std::to_string(x), std::to_string(y), std::to_string(e), ""); };
 #define ASSERT(x) ASSERT_EQ(x, true);
 
-// Macro for defining main function, user can perform custom global setup and teardown (applied to entire test program) also processed -jahoutf arguments.
-// Must explicitly call RUNALL, RUNALL_RANDOMIZED or explicit tests?
+// TestRunner. This is the in-built test runner main function which if used, compiles the test suite to a single executable. 
+// Custom code can be included in the body before and after RUNALL is called. 
+// RUNALL must be done within the macro body in order to run the tests.
 #define LOGIQA_TEST_RUNNER \
 void test_runner_main(); \
 int main(int argc, char** argv) \
@@ -149,136 +177,247 @@ int main(int argc, char** argv) \
 } \
 void test_runner_main()
 
-// Run all the tests.... used if user has global startup and teardown functionality in main....
+// Run all the tests (must be in test runner body)....
 #define RUNALL logiqa::_::test_runner_run_tests(logiqa::session());
 
-// Run all the tests, silence the output...
+// TestRunner options. 
+
+// Run all the tests, silence the output so no events are published (must be used before running the tests)...
 #define SILENCE logiqa::session().silence_ = true;
 
-// Shuffle the tests...
+// Shuffle the tests (must be used before running the tests)...
 #define SHUFFLE logiqa::session().shuffle_ = true;
 
-// Add a user reporter...
+// Add a user reporter. More than one reporter can be used...
 #define REPORT(user_reporter) logiqa::session().report_.push_back(std::make_shared<user_reporter>());
 
-// Set the user event hooks...
+// Set the user event hooks. Only single event hook interface can be used (ignored if SILENCE or silent argument is used)...
 #define EVENT(user_event) logiqa::session().event_ = std::make_unique<user_event>();
 
-// exception catcher macro...
+// Exception trapper macro...
 #define LOGIQA_EXCEPTION_CATCHER(location) catch(const std::exception& e) { logiqa_report_exception(__FILE__, __LINE__, "std::exception", #location, e.what()); } \
 catch (...) { logiqa_report_exception(__FILE__, __LINE__, "unknown exception", #location, ""); }
 
 
 
-
-// Source code...
-
-// namespace logiqa
+/// <summary>
+/// LogiQA
+/// </summary>
 namespace logiqa
 {
-
 	class test;
 
-	typedef std::vector<test*> test_list;
+	typedef std::vector<test*> test_list;		
 
+	/// <summary>
+	/// Results.
+	/// </summary>
 	namespace results
 	{
+		/// <summary>
+		/// Captures the result of a test and contains various information about the test. 
+		/// This base result class is assumed to be a pass.
+		/// </summary>
 		struct result
 		{
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="filename">Filename containing test</param>
+			/// <param name="line_number">Test line number in file</param>
+			/// <param name="t">Test type</param>
+			/// <param name="msg">Test message</param>
 			result(const std::string& filename, unsigned int line_number, const std::string& t, const std::string& msg)
 				: type_(t), msg_(msg), filename_(filename), line_number_(line_number) {}
 
-			std::string type_;
-			std::string msg_;
-			std::string filename_;
-			unsigned int line_number_;
+			std::string type_;				/// The test type
+			std::string msg_;				/// Test message
+			std::string filename_;			/// Test filename
+			unsigned int line_number_;		/// Test line number
 		};
 
 		typedef result pass;
 
+		/// <summary>
+		/// Fail result. Captures the result of a failed test and provides information such as the resultant value,
+		/// expected value, and the tolerance used in this test.
+		/// </summary>
 		struct fail : public result
 		{
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="r">The result information (base class)</param>
+			/// <param name="value">The resultant value</param>
+			/// <param name="expected">The expected value</param>
+			/// <param name="tolerance">Tolerance if present</param>
 			fail(const result& r, const std::string& value, const std::string& expected, const std::string& tolerance)
 				: result(r.filename_, r.line_number_, r.type_, r.msg_), value_(value), expected_(expected), tolerance_(tolerance) {}
 
-			std::string value_;
-			std::string expected_;
-			std::string tolerance_;
+			std::string value_;				/// The resultant value
+			std::string expected_;			/// The expected value
+			std::string tolerance_;			/// Tolerance for float comparison
 		};
 
+		/// <summary>
+		/// Excpetion result is provided if 
+		/// </summary>
 		struct exception : public result
 		{
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="r">The result information (base class)</param>
+			/// <param name="location">The location of the thrown exception</param>
 			exception(const result& r, const std::string& location)
 				: result(r.filename_, r.line_number_, r.type_, r.msg_), location_(location) {}
 
-			std::string location_;
+			std::string location_;			/// Location of the exception thrown
 		};
 
+		/// <summary>
+		/// Summary of tests run.
+		/// </summary>
 		struct summary
 		{
-			unsigned int test_passed_ = 0;
-			unsigned int test_failed_ = 0;
-			unsigned int test_empty_ = 0;
-			unsigned int exceptions_ = 0;
-			unsigned int assertions_passed_ = 0;
-			unsigned int assertions_failed_ = 0;
-			unsigned int skipped_ = 0;
-			unsigned int duration_ = 0;
+			unsigned int test_passed_ = 0;			/// Total number of tests passed
+			unsigned int test_failed_ = 0;			/// Total number of tests failed
+			unsigned int test_empty_ = 0;			/// Total number of empty tests (not run)
+			unsigned int exceptions_ = 0;			/// Total number of expcetions thrown
+			unsigned int assertions_passed_ = 0;	/// Total number of assertions passed
+			unsigned int assertions_failed_ = 0;	/// Total number of assertions failed
+			unsigned int skipped_ = 0;				/// Total number of skipped tests (not run)
+			unsigned int duration_ = 0;				/// Total duration of all tests run
 		};
 
 	}
 
+	/// <summary>
+	/// Reporting interface. For custom reporting, this interface should be used and can either 
+	/// </summary>
 	class report_interface
 	{
 	public:
+
+		/// <summary>
+		/// Report, called when the tests have finished.
+		/// </summary>
+		/// <param name="tests">The tests that were run</param>
+		/// <param name="summary">The summary of the tests run</param>
 		virtual void report(const test_list& tests, const results::summary& summary) {}
+
+		/// <summary>
+		/// Name of this reporter. Since there can be multiple reporters in a session.
+		/// </summary>
+		/// <returns></returns>
 		virtual std::string name() = 0;
 	};
 
+	/// <summary>
+	/// Event interface used to hook into events during the testing. A single event interface can be associated with the test runner
+	/// and will hook into events that occur during the test runner execution. This can be used to output messages and information about
+	/// tests being run. The default event interface used is the inbuilt one which outputs to the console.
+	/// </summary>
 	class event_interface
 	{
 	public:
+
+		/// <summary>
+		/// Message event. Called at any point provding a generic message.
+		/// </summary>
+		/// <param name="msg">The message</param>
 		virtual void message(const std::string& msg) {}
+
+		/// <summary>
+		/// Test case start event. Called when a test starts.
+		/// </summary>
+		/// <param name="test">The test about to start</param>
 		virtual void case_start(const test& test) {}
+
+		/// <summary>
+		/// Test success event. Called when a test succeeds/passes.
+		/// </summary>
+		/// <param name="test">The test that passed</param>
+		/// <param name="info">Test pass result</param>
 		virtual void case_success(const test& test, const results::pass& info) {}
+
+		/// <summary>
+		/// Test fail event. Called when a test fails.
+		/// </summary>
+		/// <param name="test">The test that failed</param>
+		/// <param name="info">Test fail result</param>
 		virtual void case_fail(const test& test, const results::fail& info) {}
+
+		/// <summary>
+		/// Test exception thrown. Called when a test throws an exception.
+		/// </summary>
+		/// <param name="test">The test that threw the exception</param>
+		/// <param name="info">Test expcetion result</param>
 		virtual void case_exception(const test& test, const results::exception& info) {}
+
+		/// <summary>
+		/// Test end event. Called when a test is fnished.
+		/// </summary>
+		/// <param name="test">The test that has ended</param>
 		virtual void case_end(const test& test) {}
+
+		/// <summary>
+		/// Test Suite start event. Called when the test session starts.
+		/// </summary>
+		/// <param name="tests">The session test list</param>
 		virtual void suite_start(const test_list& tests) {}
+
+		/// <summary>
+		/// Test suite end event. Called when the test session finishes.
+		/// </summary>
+		/// <param name="tests">The test session list</param>
+		/// <param name="summary"></param>
 		virtual void suite_end(const test_list& tests, const results::summary& summary) {}
+
+		/// <summary>
+		/// List tests. Called when the "list" argument is passed,
+		/// </summary>
+		/// <param name="test">The session test list</param>
+		/// <param name="list_tags">The tags to list</param>
 		virtual void list_test(const test& test, bool list_tags) {}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="tag"></param>
+		/// <param name="count"></param>
 		virtual void list_tag(const std::string& tag, unsigned int count) {}
 	};
 
+	/// <summary>
+	/// Namespace _. This is an internal namespace contained within LogiQA namespace providing LogiQA implementations.
+	/// </summary>
 	namespace _
 	{
+		/// <summary>
+		/// Session instance. The instance builds a list of tests to run and their associated tags.
+		/// It also specifys the event and report interfaces to use.
+		/// </summary>
 		class instance
 		{
 		public:
-			instance()
-			{
-				int y = 0;
-				++y;
-			}
+			std::map<std::string, test*> tests_;						// All the tests found in this session (not necessarily run).
+			std::shared_ptr<event_interface> event_;					// Event interface subscribing to this session.
+			std::vector<std::shared_ptr<report_interface>> report_;		// Report interface(s) subscribing to this session.
+			std::vector<std::string> tags_;								// Parsed tags from the arguments.
+			std::string test_runner_name_;								// Name of this session test runner.
+			std::string test_runner_path_;								// Path of this session test runner.
 
-			~instance()
-			{
-				int y = 0;
-				++y;
-			}
+			// Argument flags...
+			bool shuffle_ = false;										// Shuffle flag. True to shuffle tests.
+			bool list_ = false;											// List flag. True to list the tests.
+			bool list_tags_ = false;									// List tags flag. True to list the session test tags.
+			bool silence_ = false;										// Silence flag. True to supress events.
 
-			std::map<std::string, test*> tests_;
-			std::shared_ptr<event_interface> event_;
-			std::vector<std::shared_ptr<report_interface>> report_;
-			std::vector<std::string> tags_;
-			std::string test_runner_name_;
-			std::string test_runner_path_;
-
-			bool shuffle_ = false;
-			bool list_ = false;
-			bool list_tags_ = false;
-			bool silence_ = false;
-
+			/// <summary>
+			/// Instance accessor. Used by the session.
+			/// </summary>
+			/// <returns>The current instance for the session</returns>
 			static instance& get_instance()
 			{
 				static instance INSTANCE;
@@ -287,7 +426,6 @@ namespace logiqa
 		};
 
 	}
-
 	static _::instance& session()
 	{
 		return _::instance::get_instance();
@@ -307,9 +445,12 @@ namespace logiqa
 		{
 			// start timer...
 			auto begin = std::chrono::steady_clock::now();
+
+			// Execute the test body...
 			try { logiqa_body(); }
 			LOGIQA_EXCEPTION_CATCHER(test_body)
-				auto end = std::chrono::steady_clock::now();
+				
+			auto end = std::chrono::steady_clock::now();
 			duration_ = static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(begin - end).count());
 		}
 
@@ -379,12 +520,29 @@ namespace logiqa
 		std::vector<results::fail> fails_;
 	};
 
+	/// <summary>
+	/// The test fixture interface used by a test case. All fixtures must derive from this interface.
+	/// </summary>
 	class fixture
 	{
 	public:
+
+		/// <summary>
+		/// Setup of this fixture, called before calling the test body to prepare the fixture state and any members for the test.
+		/// </summary>
 		virtual void setup() {}
+
+		/// <summary>
+		/// Teardown of this fixture, called after calling the test body to cleanup/teardown any members/state of this fixture.
+		/// </summary>
 		virtual void teardown() {}
+
 	protected:
+
+		/// <summary>
+		/// Prepare a param 
+		/// </summary>
+		/// <param name="param"></param>
 		virtual void prep_param(const void* param) {}
 	};
 
@@ -418,6 +576,12 @@ namespace logiqa
 
 	namespace results
 	{
+		/// <summary>
+		/// Summerise the tests that were run.
+		/// </summary>
+		/// <param name="tests">The tests that were run</param>
+		/// <param name="all_tests">All the session tests found.</param>
+		/// <returns></returns>
 		static summary summerise(const test_list& tests, const std::map<std::string, test*>& all_tests)
 		{
 			summary total;
@@ -443,9 +607,7 @@ namespace logiqa
 
 }
 
-
-
-
+// LogiQA includes default functionality that the test runner uses. Namely an event interface which outputs to the console
 
 #ifdef LOGIQA_INCLUDE_DEFAULT_CONSOLE
 #include <iostream>
@@ -738,23 +900,28 @@ namespace logiqa
 }
 #endif
 
+/// Implementation of test runner invocation and argument processing.
 
 namespace logiqa
 {
 	namespace _
 	{
-	
+
+		/// <summary>
+		/// Prepare and run all the tests to execute as part of the test runner.
+		/// </summary>
+		/// <param name="session">The session containing the tests to run</param>
 		static void test_runner_run_tests(_::instance& session)
 		{
-			//auto inst = session();
-
-			// assert there is an event or at least a stub in the event...
+			// If we are silencing, surpress any event interfaces (no notifications)...
 			if (session.silence_)
 				session.event_.reset(new event_interface());
 			
-			// get all the tests to run...
+			// Build a list of tests to run from the all the session tests...
 			test_list tests_to_run;
 			tests_to_run.reserve(session.tests_.size());
+
+			// If there are tags specificed, use these to build a list of tests to run out of all the session tests.
 			if (!session.tags_.empty())
 			{
 				for (auto itr = session.tests_.begin(); itr != session.tests_.end(); ++itr)
@@ -792,6 +959,7 @@ namespace logiqa
 					for (auto itr = tags.begin(); itr != tags.end(); ++itr)
 						session.event_->list_tag(itr->first, itr->second);
 				}
+				// List the tests in this session...
 				else
 				{
 					for (unsigned int t = 0; t < tests_to_run.size(); ++t)
@@ -824,6 +992,13 @@ namespace logiqa
 			}
 		}
 
+		/// <summary>
+		/// Process the test runner arguments. Any arguments not processed are assumed to be test tags.
+		/// </summary>
+		/// <param name="argc">Argument count</param>
+		/// <param name="argv">Argument values</param>
+		/// <param name="session">The test runner session</param>
+		/// <returns>True if testing should proceed</returns>
 		static bool test_runner_arguments(int argc, char** argv, _::instance& session)
 		{
 			// by default, use console output...
@@ -845,7 +1020,6 @@ namespace logiqa
 			else
 				session.test_runner_name_ = "";
 				
-
 			for (int i = 1; i < argc; ++i)
 			{
 				std::string arg(*(argv + i));
@@ -866,6 +1040,7 @@ namespace logiqa
 #endif
 				else if (arg == "?" || arg == "-help")
 				{
+					// Output help message...
 					std::string str;
 					str.append("LogiQA test runner.\n");
 					str.append("Usage: > " + session.test_runner_name_ + " [-silent] [-list] [-shuffle] [-xunit=\"filename.xml\"] [?] test1 test2 ...\n");
@@ -892,8 +1067,5 @@ namespace logiqa
 		}
 	}
 }
-
-
-
 
 #endif // LOGIQA_HPP
