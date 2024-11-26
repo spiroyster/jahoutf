@@ -1,21 +1,32 @@
 # jahoutf
-Just another header only unit testing framework...
+Just another header only unit testing framework... jahoutf is a single header unit testing framework with no dependencies other than C++ STL. There is an in-built test runner which compiles to a stand alone executable, as well as xUnit (XML) compatible output to deliver test results.
+Macros are used extensively, and ultimately I would like to make them the same as googletest so, in theory, should be compatible with current googletest tests and can be a drop in replacement. 
 
-* Lightweight
-* Header only
-* STL only
-* xUnit output
-* Test runner
-* Fixtures supported
+### Supported
+
+* Lightweight.
+* (Single) Header only.
+* STL only.
+* xUnit output.
+* (In-built) Test runner.
+* Fixtures supported.
 * Parameterised values suported.
 * Customisable output and reporting.
-* Test Shuffling
+* Test Shuffling.
+* Test pattern-matching.
+
+### Not supported
+
+* Mocking
+* Section tests (Program in-situ tests)
 
 [Creating Tests](#creating-tests)
 
 [Running Tests](#running-tests)
 
 [Customisation](#customising)
+
+-Z must be used for correct macro expansion with msvc.
 
 
 ## Quick Example
@@ -112,11 +123,11 @@ A fixture is a custom class which provides state to a test case and can use cust
 
 Then tests can be writtem which accept the fixture using the **TEST_F** macro, and passing the fixture class.
 
-    TEST_F(isOdd, one, foo) { EXPECT(IsOdd(1)); 
-    TEST_F(isOdd, two, foo) { EXPECT(IsOdd(2)); 
+    TEST_F(isOdd, one, foo) { EXPECT(IsOdd(1)); }
+    TEST_F(isOdd, two, foo) { EXPECT(IsOdd(2)); }
 
-    TEST_F(isEven, one, foo) { EXPECT(IsEven(1)); 
-    TEST_F(isEven, two, foo) { EXPECT(IsEven(2)); 
+    TEST_F(isEven, one, foo) { EXPECT(IsEven(1)); }
+    TEST_F(isEven, two, foo) { EXPECT(IsEven(2)); }
 
 Fixtures are mutable, although since they are constructed and destructed each test case, longevity is clearly defined and so fixture state is not retained from one test to the next.
 
@@ -231,20 +242,6 @@ Custom code for setting up and cleaning up the global environment can be done in
         // custom code after tests are run and before reported...
     }
 
-# Inline/Section Tests
-Alternatively, tests can be inlined into existing code to be invoked in-situ. These behave differently to test cases, and do not use the test runner (since program code controls the test body execution). *Section* tests can be implented as follows:
-
-    TEST_S(group, name)
-    {
-        // Test body
-    }
-
-Unlike test cases, section tests are contained within scoped body of existing code (i.e your program). They simply execute the code block and recorde the results which can be later reported. Since the test runner is not used, the group and name of the section are used only for collation and reporting of the results. This also means group and test names do not need to be unique.
-
-To use *Section* tests, the jahoutf instance needs to be instantiated using the **JAHOUT_INSTANCE** macro. This should only be done once in the program and so should only be included in a single source file.
-
-Also, since the jahoutf session does not own or control the program execution, reporting is only done upon program destruction, however reporting can be manually triggered at any time using the **JAHOUTF_POST** macro. This will also flush any results up to that point.
-
 # Customising
 There are two interfaces avaliable to allow customisation. These are *jahoutf::event_interface* for recieving notifications of test invocation events and expectation events, and *jahoutf::report_interface* which allows user modules to generate reports of the tests. 
 
@@ -310,20 +307,6 @@ And can be installed in a test runner program as follows:
     }
 
 Or at any time using the **JAHOUTF_REPORT** macro if using *Section* tests. Unlike *event_interface* modules, there is no limit on how many *report_interface* modules can be installed. 
-
-## Arguments
-Any arguments passed to the test program are processed by the test runner before **JAHOUTF_TEST_RUNNER** block is called and so Arguments which are not reserved arguments (not *-list*, *-shuffle* etc) will be assumed to be pattern matchs for invoking the tests, however these will simply be ignored if not valid patterns, and so these can be queired to pass arguments to the custom modules if needed.
-
-For example, a filename can be supplied for the csv *report_interface* example above which is checked in the pattern matches of the jahoutf instance.
-
-    JAHOUTF_TEST_RUNNER
-    {
-        //jahoutf::session().patten_match
-        //JAHOUTF_REPORT(custom_report)
-        //RUNALL
-    }
-
-
 
 Happy Testing!
 

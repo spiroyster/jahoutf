@@ -1,9 +1,9 @@
-#include "../include/LogiQA.hpp"
+#include "../include/jahoutf.hpp"
 
 // Test examples showing how to use simple tests, fixtures, parameterised tests (values) 
 
 // Use the in-built test runner to run all the tests...
-LOGIQA_TEST_RUNNER { RUNALL }
+JAHOUTF_TEST_RUNNER { RUNALL }
 
 // Test called "oneIsOdd" which uses an assertion if the value 1 is odd.
 TEST(oneIsOdd)
@@ -39,7 +39,7 @@ TEST(two, "isEven")
 // to all tests using this fixture. The fixture is declared and passed to the test fixture macros. Methods in fixtures 
 // must be public in order to accessable to the test fixture. The text macro, wraps the fixture object and so has public
 // access to the fixture methods.
-class myFixture : public logiqa::fixture
+class myFixture : public jahoutf::fixture
 {
 public:
 
@@ -88,50 +88,50 @@ TEST_F(fixtureThree, myFixture, "isEven")
 
 // In these examples we can pass values (parameters) to the test
 
-auto oddNumbers = logiqa::param<int>({1, 3, 5, 7, 9});
-auto evenNumbers = logiqa::param<int>({2, 4, 6, 8, 10});
+auto oddNumbers = jahoutf::param<int>({1, 3, 5, 7, 9});
+auto evenNumbers = jahoutf::param<int>({2, 4, 6, 8, 10});
 
-TEST_VALUES(values, oddNumbers)
+TEST_P(values, oddNumbers)
 {
-    int x = logiqa_param();
+    int x = JAHOUTF_param();
     ASSERT_EQ(x % 2, 1)
 }
 
-TEST_VALUES(odd_numbers, oddNumbers, "isOdd values")
+TEST_P(odd_numbers, oddNumbers, "isOdd values")
 {
-    int x = logiqa_param();
+    int x = JAHOUTF_param();
     ASSERT_EQ(x % 2, 1)
 }
 
-TEST_VALUES(even_numbers, evenNumbers, "isEven values")
+TEST_P(even_numbers, evenNumbers, "isEven values")
 {
-    int x = logiqa_param();
+    int x = JAHOUTF_param();
     ASSERT_EQ(x % 2, 0)
 }
 
-TEST_F_VALUES(odd_numbers_with_fixture, myFixture, oddNumbers, "isOdd fixtureValues")
+TEST_FP(odd_numbers_with_fixture, myFixture, oddNumbers, "isOdd fixtureValues")
 {
-    int x = logiqa_param();
+    int x = JAHOUTF_param();
     ASSERT(IsOdd(x))
 }
 
-TEST_F_VALUES(even_numbers_with_fixture, myFixture, evenNumbers, "isEven fixtureValues")
+TEST_FP(even_numbers_with_fixture, myFixture, evenNumbers, "isEven fixtureValues")
 {
-    int x = logiqa_param();
+    int x = JAHOUTF_param();
     ASSERT(IsEven(x))
 }
 
 
-class myFixtureWithParams : public logiqa::fixture_param<int>
+class myFixtureWithParams : public jahoutf::fixture_param<int>
 {
     public:
     bool IsOdd(int v) { return v % 2 == 1; }
     bool IsEven(int v) { return v % 2 == 0; }
 };
 
-TEST_F_VALUES(test_f_values_paramFixtureNoParamUse, myFixtureWithParams, evenNumbers, "isEven fixtureValues")
+TEST_FP(test_f_values_paramFixtureNoParamUse, myFixtureWithParams, evenNumbers, "isEven fixtureValues")
 {
-    ASSERT(IsEven(logiqa_param()))
+    ASSERT(IsEven(JAHOUTF_param()))
 }
 
 class myFixtureWithParamsAndSetup : public myFixtureWithParams
@@ -139,12 +139,12 @@ class myFixtureWithParamsAndSetup : public myFixtureWithParams
     public:
     void setup()
     {
-        x_ = logiqa_param();
+        x_ = JAHOUTF_param();
     }
     int x_;
 };
 
-TEST_F_VALUES(test_f_values_paramFixtureAndSetup, myFixtureWithParamsAndSetup, evenNumbers, "isEven fixtureValues")
+TEST_FP(test_f_values_paramFixtureAndSetup, myFixtureWithParamsAndSetup, evenNumbers, "isEven fixtureValues")
 {
     ASSERT(IsEven(x_))
 }
