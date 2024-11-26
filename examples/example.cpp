@@ -5,4 +5,6 @@
 LOGIQA_TEST_RUNNER { RUNALL }
 
 // A single test with a single assertion that passes...
-LOGIQA_TEST(helloWorld, "") { ASSERT_PASS }
+TEST(helloWorld) { ASSERT_PASS }
+
+

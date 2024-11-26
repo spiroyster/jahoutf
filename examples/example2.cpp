@@ -6,7 +6,7 @@
 LOGIQA_TEST_RUNNER { RUNALL }
 
 // Test called "oneIsOdd" which uses an assertion if the value 1 is odd.
-LOGIQA_TEST(oneIsOdd, "")
+TEST(oneIsOdd)
 {
     // Use the value of 1...
     int x = 1;
@@ -16,19 +16,19 @@ LOGIQA_TEST(oneIsOdd, "")
 }
 
 // Test using an assertion to check if the 2 is even. No tags.
-LOGIQA_TEST(twoIsEven, "")
+TEST(twoIsEven)
 {
     int x = 2;
 	ASSERT_EQ(x % 2, 0)
 }
 
-LOGIQA_TEST(one, "isOdd")
+TEST(one, "isOdd")
 {
     int x = 1;
 	ASSERT_EQ(x % 2, 1)
 }
 
-LOGIQA_TEST(two, "isEven")
+TEST(two, "isEven")
 {
     int x = 2;
 	ASSERT_EQ(x % 2, 0)
@@ -58,7 +58,7 @@ public:
     bool IsEven(int v) { return v % 2 == 0; }
 };
 
-LOGIQA_TEST_FIXTURE(fixtureOne, "isOdd", myFixture)
+TEST_F(fixtureOne, myFixture)
 {
     // Use the value x to 1.
     int x = 1;
@@ -67,7 +67,16 @@ LOGIQA_TEST_FIXTURE(fixtureOne, "isOdd", myFixture)
     ASSERT(IsOdd(x))
 }
 
-LOGIQA_TEST_FIXTURE(fixtureTwo, "isEven", myFixture)
+TEST_F(fixtureTwo, myFixture, "isOdd")
+{
+    // Use the value x to 1.
+    int x = 1;
+
+    // Use the fixture method IsOdd to check if the value is odd.
+    ASSERT(IsOdd(x))
+}
+
+TEST_F(fixtureThree, myFixture, "isEven")
 {
     // Set the value x to 2.
     int x = 2;
@@ -82,25 +91,31 @@ LOGIQA_TEST_FIXTURE(fixtureTwo, "isEven", myFixture)
 auto oddNumbers = logiqa::param<int>({1, 3, 5, 7, 9});
 auto evenNumbers = logiqa::param<int>({2, 4, 6, 8, 10});
 
-LOGIQA_TEST_PARAMS(values, "isOdd values", oddNumbers)
+TEST_VALUES(values, oddNumbers)
 {
     int x = logiqa_param();
     ASSERT_EQ(x % 2, 1)
 }
 
-LOGIQA_TEST_PARAMS(even_numbers, "isEven values", evenNumbers)
+TEST_VALUES(odd_numbers, oddNumbers, "isOdd values")
+{
+    int x = logiqa_param();
+    ASSERT_EQ(x % 2, 1)
+}
+
+TEST_VALUES(even_numbers, evenNumbers, "isEven values")
 {
     int x = logiqa_param();
     ASSERT_EQ(x % 2, 0)
 }
 
-LOGIQA_TEST_FIXTURE_PARAMS(fdjkfjdk, "isOdd fixtureValues", myFixture, oddNumbers)
+TEST_F_VALUES(odd_numbers_with_fixture, myFixture, oddNumbers, "isOdd fixtureValues")
 {
     int x = logiqa_param();
     ASSERT(IsOdd(x))
 }
 
-LOGIQA_TEST_FIXTURE_PARAMS(fjdfjdkfdjk, "isEven fixtureValues", myFixture, evenNumbers)
+TEST_F_VALUES(even_numbers_with_fixture, myFixture, evenNumbers, "isEven fixtureValues")
 {
     int x = logiqa_param();
     ASSERT(IsEven(x))
@@ -114,7 +129,7 @@ class myFixtureWithParams : public logiqa::fixture_param<int>
     bool IsEven(int v) { return v % 2 == 0; }
 };
 
-LOGIQA_TEST_FIXTURE_PARAMS(test_f_values_paramFixtureNoParamUse, "isEven", myFixtureWithParams, evenNumbers)
+TEST_F_VALUES(test_f_values_paramFixtureNoParamUse, myFixtureWithParams, evenNumbers, "isEven fixtureValues")
 {
     ASSERT(IsEven(logiqa_param()))
 }
@@ -129,7 +144,7 @@ class myFixtureWithParamsAndSetup : public myFixtureWithParams
     int x_;
 };
 
-LOGIQA_TEST_FIXTURE_PARAMS(test_f_values_paramFixtureAndSetup, "isEven", myFixtureWithParamsAndSetup, evenNumbers)
+TEST_F_VALUES(test_f_values_paramFixtureAndSetup, myFixtureWithParamsAndSetup, evenNumbers, "isEven fixtureValues")
 {
     ASSERT(IsEven(x_))
 }
