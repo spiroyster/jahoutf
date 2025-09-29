@@ -37,7 +37,6 @@ Macro expansion is not correct by default for msvc and requires the standard con
 
 
 
-
 */
 
 
@@ -911,6 +910,8 @@ namespace jahoutf
 
 	class console : public event_interface
 	{
+	protected:
+
 #ifdef JAHOUTF_CONSOLE_NOANSI
 		std::string red(const std::string& msg) { return msg; }
 		std::string green(const std::string& msg) { return msg; }
