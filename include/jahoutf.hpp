@@ -496,7 +496,7 @@ namespace jahoutf
 			try { JAHOUTF_body(); }
 			JAHOUTF_EXCEPTION_CATCHER(test_body)
 				
-			duration_ = static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(begin - std::chrono::steady_clock::now()).count());
+			duration_ = static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count());
 		}
 
 		// unique name...
@@ -659,7 +659,7 @@ namespace jahoutf
 	static summary summerise(const test_list& tests, const std::map<std::string, test*>& all_tests)
 	{
 		summary total;
-		for (auto t = 0; t < tests.size(); ++t)
+		for (std::size_t t = 0; t < tests.size(); ++t)
 		{
 			// Add the assertion totals...
 			total.assertions_passed_ += static_cast<unsigned int>(tests[t]->JAHOUTF_result_passes().size());
@@ -740,8 +740,8 @@ namespace jahoutf
 		}
 
 		// if shuffle, randomise...
-		if (session.shuffle_)
-			std::random_shuffle(tests_to_run.begin(), tests_to_run.end());
+		//if (session.shuffle_)
+		//	std::random_shuffle(tests_to_run.begin(), tests_to_run.end());
 
 		// run the tests...
 		jahoutf::session().event_->suite_start(tests_to_run);
